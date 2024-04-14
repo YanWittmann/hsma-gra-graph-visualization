@@ -1,7 +1,7 @@
 # Visualisierungstool für Graphentheorie
 
-... an der [Hochschule Mannheim](https://www.hs-mannheim.de).
-Live-Version: https://yanwittmann.github.io/hsma-gra-graph-visualization
+- an der [Hochschule Mannheim](https://www.hs-mannheim.de)
+- Live-Version: https://yanwittmann.github.io/hsma-gra-graph-visualization
 
 ## Features
 

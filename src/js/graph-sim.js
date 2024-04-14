@@ -432,15 +432,15 @@ function initializeGraphSim(canvasId) {
     }
 
     document.addEventListener('keydown', event => {
-        if (event.key === '1') {
+        if (event.key === '1' || event.key === 'a') {
             changeMode(Mode.ADD_VERTEX);
-        } else if (event.key === '2') {
+        } else if (event.key === '2' || event.key === 'c') {
             changeMode(Mode.ADD_EDGE);
-        } else if (event.key === '3') {
+        } else if (event.key === '3' || event.key === 'r') {
             changeMode(Mode.REMOVE_ELEMENT);
-        } else if (event.key === '4') {
+        } else if (event.key === '4' || event.key === 'g') {
             changeMode(Mode.MOVE_VERTEX);
-        } else if (event.key === '5') {
+        } else if (event.key === '5' || event.key === 'b') {
             changeMode(Mode.ADD_EDGE_REDIRECT);
         } else if (event.key === 'e') {
             visualizationOptions.debugEdges = !visualizationOptions.debugEdges;
@@ -452,6 +452,23 @@ function initializeGraphSim(canvasId) {
             selectedVertex = null;
             draggedVertex = null;
             drawGraph();
+        } else if (event.key === 'd') {
+            // export graph into png and download, crop the canvas to the graph by finding the max and min x and y values and adding the vertex radius as padding
+            const minX = Math.min(...vertices.map(vertex => vertex.x)) - vertexRadius * 2;
+            const maxX = Math.max(...vertices.map(vertex => vertex.x)) + vertexRadius * 2;
+            const minY = Math.min(...vertices.map(vertex => vertex.y)) - vertexRadius * 2;
+            const maxY = Math.max(...vertices.map(vertex => vertex.y)) + vertexRadius * 2;
+            const width = maxX - minX;
+            const height = maxY - minY;
+            const tempCanvas = document.createElement('canvas');
+            tempCanvas.width = width;
+            tempCanvas.height = height;
+            const tempCtx = tempCanvas.getContext('2d');
+            tempCtx.drawImage(canvas, minX, minY, width, height, 0, 0, width, height);
+            const link = document.createElement('a');
+            link.download = 'graph-' + polygons.length + '-' + vertices.length + '-' + edges.length + '.png';
+            link.href = tempCanvas.toDataURL();
+            link.click();
         }
     });
 
@@ -686,7 +703,7 @@ function initializeGraphSim(canvasId) {
             if (otherPolygonsAreaSum <= polygonAreaValue + lenience) {
                 filteredPolygons.push(polygon);
             } else {
-                console.log("Container polygon found", polygon, otherPolygonsAreaSum, '>', polygonAreaValue + lenience, containedPolygons);
+                // console.log("Container polygon found", polygon, otherPolygonsAreaSum, '>', polygonAreaValue + lenience, containedPolygons);
             }
         }
 
