@@ -1,0 +1,19 @@
+
+body, html {
+    margin: 0;
+    padding: 0;
+    overflow: hidden;
+    height: 100%;
+}
+
+canvas {
+    display: block;
+    background-color: #eee;
+    width: 100%;
+    height: 100%;
+}
+
+#formulaText.invalid {
+    color: red;
+    text-decoration: underline;
+}
