@@ -8,8 +8,24 @@ const Mode = {
 
 function initializeGraphSim(canvasId) {
 
+    const isMobile = 'ontouchstart' in window;
+
     const canvas = document.getElementById(canvasId);
     const ctx = canvas.getContext('2d');
+    canvas.width = canvas.offsetWidth;
+    canvas.height = canvas.offsetHeight;
+    canvas.width = canvas.offsetWidth;
+    canvas.height = canvas.offsetHeight;
+    canvas.width = canvas.offsetWidth;
+    canvas.height = canvas.offsetHeight;
+    canvas.width = canvas.offsetWidth;
+    canvas.height = canvas.offsetHeight;
+    canvas.width = canvas.offsetWidth;
+    canvas.height = canvas.offsetHeight;
+    canvas.width = canvas.offsetWidth;
+    canvas.height = canvas.offsetHeight;
+    canvas.width = canvas.offsetWidth;
+    canvas.height = canvas.offsetHeight;
     canvas.width = canvas.offsetWidth;
     canvas.height = canvas.offsetHeight;
 
@@ -49,7 +65,6 @@ function initializeGraphSim(canvasId) {
         showPolygonIndices: false,
     }
 
-// Modes
     let currentMode = Mode.ADD_VERTEX;
     let isMouseDown = false;
 
@@ -67,7 +82,6 @@ function initializeGraphSim(canvasId) {
         ctx.closePath();
     }
 
-// Function to draw an edge between two vertices
     function drawEdge(startVertex, endVertex, colorMode = true) {
         ctx.beginPath();
         ctx.strokeStyle = colorMode ? '#000' : '#000';
@@ -78,7 +92,6 @@ function initializeGraphSim(canvasId) {
         ctx.closePath();
     }
 
-// Function to draw the graph
     function drawGraph() {
         // Clear canvas
         ctx.clearRect(0, 0, canvas.width, canvas.height);
@@ -156,11 +169,21 @@ function initializeGraphSim(canvasId) {
     let draggedVertex = null;
     let draggedStart = null; // {x: number, y: number}
 
-// Function to handle mouse down event
+    function touchEventExtractPosition(event) {
+        if (event.type === 'touchstart' || event.type === 'touchmove' || event.type === 'touchend'
+            || event.type === 'touchcancel') {
+            const touch = event.touches[0] || event.changedTouches[0];
+            event.clientX = touch.pageX;
+            event.clientY = touch.pageY;
+        }
+    }
+
     function handleMouseDown(event) {
         if (!isMouseDown) {
             isMouseDown = true;
         }
+        touchEventExtractPosition(event);
+        console.log('mouse down', event.clientX, event.clientY);
 
         const rect = canvas.getBoundingClientRect();
         const mouseX = event.clientX - rect.left;
@@ -224,12 +247,11 @@ function initializeGraphSim(canvasId) {
             }
         }
 
-        // Redraw the graph
         drawGraph();
     }
 
-// Function to handle mouse move event
     function handleMouseMove(event) {
+        touchEventExtractPosition(event);
         if ((currentMode === Mode.ADD_EDGE || currentMode === Mode.ADD_EDGE_REDIRECT) && selectedVertex) {
             // If in add edge mode and a vertex is selected, draw a temporary edge
             const rect = canvas.getBoundingClientRect();
@@ -248,11 +270,12 @@ function initializeGraphSim(canvasId) {
         }
     }
 
-// Function to handle mouse up event
     function handleMouseUp(event) {
         if (isMouseDown) {
             isMouseDown = false;
         }
+        touchEventExtractPosition(event);
+        console.log('mouse up', event.clientX, event.clientY);
 
         if ((currentMode === Mode.ADD_EDGE || currentMode === Mode.ADD_EDGE_REDIRECT) && selectedVertex) {
             // If in add edge mode and a vertex is selected, find the end vertex under the mouse
@@ -270,7 +293,7 @@ function initializeGraphSim(canvasId) {
                     break;
                 }
             }
-            if (!foundVertex) {
+            if (!foundVertex && !isMobile) {
                 // the user wants to break up the line, add a new vertex at the mouse position and still resume the edge
                 const newVertex = {
                     x: mouseX,
@@ -286,6 +309,17 @@ function initializeGraphSim(canvasId) {
                 }
                 selectedVertex = newVertex;
             }
+
+            // remove duplicate edges (no matter the direction)
+            edges = edges.filter((edge, index) => {
+                for (let i = 0; i < edges.length; i++) {
+                    const otherEdge = edges[i];
+                    if (edge.startVertex === otherEdge.endVertex && edge.endVertex === otherEdge.startVertex) {
+                        return i < index;
+                    }
+                }
+                return true;
+            });
         } else if (currentMode === Mode.MOVE_VERTEX && draggedVertex) {
             draggedVertex = null;
         }
@@ -293,14 +327,12 @@ function initializeGraphSim(canvasId) {
         drawGraph();
     }
 
-// Function to calculate the distance from a point to a line
     function distanceToLine(x, y, startVertex, endVertex) {
         const numerator = Math.abs((endVertex.y - startVertex.y) * x - (endVertex.x - startVertex.x) * y + endVertex.x * startVertex.y - endVertex.y * startVertex.x);
         const denominator = Math.sqrt((endVertex.y - startVertex.y) ** 2 + (endVertex.x - startVertex.x) ** 2);
         return numerator / denominator;
     }
 
-// Function to generate a random color
     function getRandomColor() {
         const letters = '0123456789ABCDEF';
         let color = '#';
@@ -310,18 +342,27 @@ function initializeGraphSim(canvasId) {
         return color;
     }
 
-// Function to change the current mode
     function changeMode(newMode) {
         currentMode = newMode;
         if (currentMode === Mode.ADD_EDGE) {
-            selectedVertex = null; // Reset selected vertex when switching to add edge mode
+            selectedVertex = null;
         }
         for (const listener of modeChangedListeners) {
             listener(currentMode);
         }
+
+        // depending on the mode, set the mouse cursor when it hovers over the canvas
+        if (currentMode === Mode.ADD_VERTEX) {
+            canvas.style.cursor = 'crosshair';
+        } else if (currentMode === Mode.ADD_EDGE || currentMode === Mode.ADD_EDGE_REDIRECT) {
+            canvas.style.cursor = 'crosshair';
+        } else if (currentMode === Mode.REMOVE_ELEMENT) {
+            canvas.style.cursor = 'not-allowed';
+        } else if (currentMode === Mode.MOVE_VERTEX) {
+            canvas.style.cursor = 'move';
+        }
     }
 
-// Event listener to change mode
     document.addEventListener('keydown', event => {
         if (event.key === '1') {
             changeMode(Mode.ADD_VERTEX);
@@ -336,16 +377,20 @@ function initializeGraphSim(canvasId) {
         }
     });
 
-// Event listeners
-    canvas.addEventListener('mousedown', handleMouseDown);
-    canvas.addEventListener('mousemove', handleMouseMove);
-    canvas.addEventListener('mouseup', handleMouseUp);
+    // computer mouse events if on computer
+    if (!isMobile) {
+        canvas.addEventListener('mousedown', handleMouseDown);
+        canvas.addEventListener('mousemove', handleMouseMove);
+        canvas.addEventListener('mouseup', handleMouseUp);
+    }
+    // mobile touch events if on mobile
+    else {
+        canvas.addEventListener('touchstart', handleMouseDown);
+        canvas.addEventListener('touchmove', handleMouseMove);
+        canvas.addEventListener('touchend', handleMouseUp);
+    }
 
-// Initial draw
-    drawGraph();
 
-
-// Function to split edges where they intersect
     function splitEdges() {
         let newEdges = [];
         let allIntersections = new Set();
@@ -358,7 +403,7 @@ function initializeGraphSim(canvasId) {
                     const { startVertex: p3, endVertex: p4 } = otherEdge;
                     const intersection = lineIntersection(p1, p2, p3, p4);
                     if (intersection && !isVertex(intersection)) {
-                        // Add the intersection point if it's not already present
+                        // add the intersection point if it's not already present
                         const existingIntersection = intersections.find(point => point.x === intersection.x && point.y === intersection.y);
                         if (!existingIntersection) {
                             intersections.push(intersection);
@@ -366,9 +411,9 @@ function initializeGraphSim(canvasId) {
                     }
                 }
             }
-            // Sort the intersection points based on their distance from the starting vertex
+            // sort the intersection points based on their distance from the starting vertex
             intersections.sort((a, b) => distance(p1, a) - distance(p1, b));
-            // Split the edge into segments using the intersection points
+            // split the edge into segments using the intersection points
             let prevVertex = p1;
             for (const intersection of intersections) {
                 newEdges.push({ startVertex: prevVertex, endVertex: intersection });
@@ -388,7 +433,6 @@ function initializeGraphSim(canvasId) {
         return vertices.some(vertex => vertex.x === point.x && vertex.y === point.y);
     }
 
-// Function to calculate the intersection point of two lines
     function lineIntersection(p1, p2, p3, p4) {
         const x1 = p1.x, y1 = p1.y;
         const x2 = p2.x, y2 = p2.y;
@@ -413,7 +457,6 @@ function initializeGraphSim(canvasId) {
         return { x: px, y: py };
     }
 
-// Function to calculate the distance between two points
     function distance(p1, p2) {
         return Math.sqrt((p1.x - p2.x) ** 2 + (p1.y - p2.y) ** 2);
     }
@@ -701,10 +744,20 @@ function initializeGraphSim(canvasId) {
         }
     }
 
+    function clearGraph() {
+        vertices = [];
+        edges = [];
+        nonExistentVertices = [];
+        drawGraph();
+    }
+
+    drawGraph();
+
     return {
         changeMode: changeMode,
         drawGraph: drawGraph,
         getState: getState,
+        clearGraph: clearGraph,
         addUpdateListener: addUpdateListener,
         addModeChangedListener: addModeChangedListener,
         visualizationOptions: visualizationOptions

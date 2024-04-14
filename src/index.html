@@ -7,6 +7,12 @@
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
     <link rel="stylesheet" href="css/styles.css">
+    <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.11.8/dist/umd/popper.min.js"
+            integrity="sha384-I7E8VVD/ismYTF4hNIPjVp/Zjvgyol6VFvRkX/vR+Vc4jQkC+hVqc2pM8ODewa9r"
+            crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.min.js"
+            integrity="sha384-0pUGZvbkm6XF6gxjEnlmuGrJXVbNuzT9qBBavbLwCsOGabYfZo0T0to5eqruptLy"
+            crossorigin="anonymous"></script>
 </head>
 <body class="vh-100 m-0 p-0">
 
@@ -16,17 +22,36 @@
             <h2 class="mb-3"><b>GRA</b> Visualization</h2>
 
             <div class="btn-group btn-block mb-2" role="group" aria-label="Basic example">
-                <button type="button" id="newVertexButton" class="btn btn-primary btn-change-gra-mode active">
+                <button type="button" id="newVertexButton" class="btn btn-primary btn-change-gra-mode active"
+                        data-bs-toggle="popover" data-bs-trigger="hover" data-bs-placement="bottom"
+                        title="Add Vertex" data-bs-content="Click to add a new vertex">
                     <i class="bi bi-plus-circle-fill"></i>
                 </button>
-                <button type="button" id="createEdgeButton" class="btn btn-primary btn-change-gra-mode">
-                    <i class="bi bi-link-45deg"></i>
+                <button type="button" id="createEdgeButton" class="btn btn-primary btn-change-gra-mode"
+                        data-bs-toggle="popover" data-bs-trigger="hover" data-bs-placement="bottom" title="Add Edge"
+                        data-bs-content="Hold down on a vertex and drag to another vertex to create an edge, or drag into empty space to create a new vertex.">
+                    <i class="bi bi-node-plus-fill"></i>
                 </button>
-                <button type="button" id="removeElementButton" class="btn btn-danger btn-change-gra-mode">
-                    <i class="bi bi-trash-fill"></i>
+                <button type="button" id="createEdgeRedirectButton" class="btn btn-primary btn-change-gra-mode"
+                        data-bs-toggle="popover" data-bs-trigger="hover" data-bs-placement="bottom"
+                        title="Add Redirected Edge"
+                        data-bs-content="Hold down on a vertex and drag into empty space continuously until you reach a desired vertex to create multiple redirection points, connected by a single logical edge.">
+                    <i class="bi bi-share-fill"></i>
                 </button>
-                <button type="button" id="moveVertexButton" class="btn btn-secondary btn-change-gra-mode">
+                <button type="button" id="moveVertexButton" class="btn btn-secondary btn-change-gra-mode"
+                        data-bs-toggle="popover" data-bs-trigger="hover" data-bs-placement="bottom"
+                        title="Move Vertex" data-bs-content="Click and drag a vertex to move it.">
                     <i class="bi bi-arrows-move"></i>
+                </button>
+                <button type="button" id="removeElementButton" class="btn btn-warning btn-change-gra-mode"
+                        data-bs-toggle="popover" data-bs-trigger="hover" data-bs-placement="bottom"
+                        title="Remove Element" data-bs-content="Click on a vertex or edge to remove it.">
+                    <i class="bi bi-ban"></i>
+                </button>
+                <button type="button" id="removeAllElementsButton" class="btn btn-danger btn-change-gra-mode"
+                        data-bs-toggle="popover" data-bs-trigger="hover" data-bs-placement="bottom"
+                        title="Clear Graph" data-bs-content="Click to remove all vertices and edges.">
+                    <i class="bi bi-trash-fill"></i>
                 </button>
             </div>
             <br>
@@ -92,11 +117,17 @@
         document.getElementById('createEdgeButton').addEventListener('click', function () {
             graphSim.changeMode(Mode.ADD_EDGE);
         });
+        document.getElementById('createEdgeRedirectButton').addEventListener('click', function () {
+            graphSim.changeMode(Mode.ADD_EDGE_REDIRECT);
+        });
         document.getElementById('removeElementButton').addEventListener('click', function () {
             graphSim.changeMode(Mode.REMOVE_ELEMENT);
         });
         document.getElementById('moveVertexButton').addEventListener('click', function () {
             graphSim.changeMode(Mode.MOVE_VERTEX);
+        });
+        document.getElementById('removeAllElementsButton').addEventListener('click', function () {
+            graphSim.clearGraph();
         });
 
         graphSim.addModeChangedListener(function (mode) {
@@ -112,6 +143,9 @@
                 case Mode.ADD_EDGE:
                     document.getElementById('createEdgeButton').classList.add('active');
                     break;
+                case Mode.ADD_EDGE_REDIRECT:
+                    document.getElementById('createEdgeRedirectButton').classList.add('active');
+                    break;
                 case Mode.REMOVE_ELEMENT:
                     document.getElementById('removeElementButton').classList.add('active');
                     break;
@@ -125,7 +159,7 @@
             { option: 'showVertices', label: 'Show Vertices', icon: 'bi bi-circle-fill' },
             { option: 'showEdges', label: 'Show Edges', icon: 'bi bi-link-45deg' },
             { option: 'showPolygons', label: 'Show Polygons', icon: 'bi bi-pentagon-fill' },
-            { option: 'showIntersections', label: 'Show Intersections', icon: 'bi bi-bounding-box-circles' },
+            { option: 'showIntersections', label: 'Show Intersections and Redirect points', icon: 'bi bi-bounding-box-circles' },
             { option: 'showPolygonIndices', label: 'Show Polygon Indices', icon: 'bi bi-list-ol' },
         ];
         const visualizationOptionsContainer = document.getElementById('visualizationOptions');
@@ -134,6 +168,12 @@
             const button = document.createElement('button');
             button.classList.add('btn', 'btn-secondary', 'btn-block', 'btn-sm');
             button.id = 'btn-option-' + option;
+            button.title = label;
+
+            // initialize the button with a popover
+            button.setAttribute('data-bs-toggle', 'popover');
+            button.setAttribute('data-bs-trigger', 'hover');
+            button.setAttribute('data-bs-placement', 'bottom');
 
             const icon = document.createElement('i');
             icon.className = icon.className + visualizationOptionsLabels.find((item) => item.option === option).icon;
@@ -172,6 +212,12 @@
             updateVisualizationOptions();
         });
         updateVisualizationOptions();
+        graphSim.changeMode(Mode.ADD_VERTEX);
+
+        var popoverTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="popover"]'))
+        var popoverList = popoverTriggerList.map(function (popoverTriggerEl) {
+            return new bootstrap.Popover(popoverTriggerEl)
+        })
     });
 </script>
 </body>
