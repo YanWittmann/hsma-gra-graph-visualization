@@ -16,4 +16,6 @@ canvas {
 #formulaText.invalid {
     color: red;
     text-decoration: underline;
+    background-color: rgba(250, 57, 57, 0.16);
+    border-radius: 40px;
 }

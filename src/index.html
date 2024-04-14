@@ -61,9 +61,21 @@
             </div>
 
             <p class="text-center mt-3" style="font-size: 24px;" id="formulaText">
-                <span id="fvalue" style="color: #006fff; font-weight: bold;"></span>
-                = <span id="Kvalue" style="color: #ff2d0f; font-weight: bold;"></span>
-                - <span id="Evalue" style="color: #04a100; font-weight: bold;"></span> + 2
+                <span id="fvalue" style="color: #006fff; font-weight: bold;"
+                      data-bs-toggle="popover" data-bs-trigger="hover" data-bs-placement="bottom"
+                      title="Euler's Formula"
+                      data-bs-content="f is the number of faces in the graph. Euler's formula states that f = |K| - |E| + 2.">
+                </span>
+                = <span id="Kvalue" style="color: #ff2d0f; font-weight: bold;"
+                        data-bs-toggle="popover" data-bs-trigger="hover" data-bs-placement="bottom"
+                        title="Euler's Formula"
+                        data-bs-content="|K| is the number of edges in the graph. Euler's formula states that f = |K| - |E| + 2.">
+                </span>
+                - <span id="Evalue" style="color: #04a100; font-weight: bold;"
+                        data-bs-toggle="popover" data-bs-trigger="hover" data-bs-placement="bottom"
+                        title="Euler's Formula"
+                        data-bs-content="|E| is the number of vertices in the graph. Euler's formula states that f = |K| - |E| + 2.">
+            </span> + 2
             </p>
 
             <script>
@@ -74,6 +86,7 @@
                         document.getElementById('Kvalue').textContent = '|K|';
                         document.getElementById('Evalue').textContent = '|E|';
                         document.getElementById('fvalue').textContent = 'f';
+                        document.getElementById('formulaText').classList.remove('invalid');
                     } else {
                         document.getElementById('Kvalue').textContent = K;
                         document.getElementById('Evalue').textContent = E;
@@ -159,7 +172,11 @@
             { option: 'showVertices', label: 'Show Vertices', icon: 'bi bi-circle-fill' },
             { option: 'showEdges', label: 'Show Edges', icon: 'bi bi-link-45deg' },
             { option: 'showPolygons', label: 'Show Polygons', icon: 'bi bi-pentagon-fill' },
-            { option: 'showIntersections', label: 'Show Intersections and Redirect points', icon: 'bi bi-bounding-box-circles' },
+            {
+                option: 'showIntersections',
+                label: 'Show Intersections and Redirect points',
+                icon: 'bi bi-bounding-box-circles'
+            },
             { option: 'showPolygonIndices', label: 'Show Polygon Indices', icon: 'bi bi-list-ol' },
         ];
         const visualizationOptionsContainer = document.getElementById('visualizationOptions');
