@@ -63,10 +63,45 @@ function initializeGraphSim(canvasId) {
         showPolygons: true,
         showIntersections: true,
         showPolygonIndices: false,
+        debugEdges: false,
+        debugVertices: false,
     }
 
     let currentMode = Mode.ADD_VERTEX;
     let isMouseDown = false;
+
+    function loadGraph(verticesData, edgesData, nonExistentVerticesData) {
+        if (!verticesData || !edgesData) {
+            console.warn('Invalid graph data', verticesData, edgesData);
+            return;
+        }
+        vertices = verticesData;
+        nonExistentVertices = nonExistentVerticesData;
+        // find for each edge the corresponding vertex in the vertices array if present and replace by instance so that operations like moving vertices work to maintain the reference
+        edgesData = edgesData.map(edge => {
+            const startVertex = vertices.find(vertex => vertex.x === edge.startVertex.x && vertex.y === edge.startVertex.y);
+            const endVertex = vertices.find(vertex => vertex.x === edge.endVertex.x && vertex.y === edge.endVertex.y);
+            if (startVertex) {
+                edge.startVertex = startVertex;
+            } else {
+                const nonExistentStartVertex = nonExistentVerticesData.find(vertex => vertex.x === edge.startVertex.x && vertex.y === edge.startVertex.y);
+                if (nonExistentStartVertex) {
+                    edge.startVertex = nonExistentStartVertex;
+                }
+            }
+            if (endVertex) {
+                edge.endVertex = endVertex;
+            } else {
+                const nonExistentEndVertex = nonExistentVerticesData.find(vertex => vertex.x === edge.endVertex.x && vertex.y === edge.endVertex.y);
+                if (nonExistentEndVertex) {
+                    edge.endVertex = nonExistentEndVertex;
+                }
+            }
+            return edge;
+        });
+        edges = edgesData;
+        drawGraph();
+    }
 
     function drawVertex(x, y, color) {
         ctx.beginPath();
@@ -144,7 +179,14 @@ function initializeGraphSim(canvasId) {
                 const intersection = edgesSplitUp.intersections[i];
                 ctx.beginPath();
                 ctx.arc(intersection.x, intersection.y, 5, 0, Math.PI * 2);
-                ctx.fillStyle = '#000';
+                // count the amount of edges connected to the intersection.
+                // - if it's 2, it's a redirect point
+                // - if it's more than 2, it's an intersection between multiple edges and should be marked in red
+                const connectedEdges = edgesSplitUp.newEdges.filter(edge => {
+                    return edge.startVertex.x === intersection.x && edge.startVertex.y === intersection.y ||
+                        edge.endVertex.x === intersection.x && edge.endVertex.y === intersection.y;
+                });
+                ctx.fillStyle = connectedEdges.length > 2 ? '#cc0000' : '#000';
                 ctx.fill();
                 ctx.closePath();
             }
@@ -156,9 +198,9 @@ function initializeGraphSim(canvasId) {
             }
         }
 
-        // if (!isMouseDown) {
-        //     drawDebugItems();
-        // }
+        if (!isMouseDown) {
+            drawDebugItems(edgesSplitUp);
+        }
 
         for (const listener of updateListeners) {
             listener(getState());
@@ -183,11 +225,12 @@ function initializeGraphSim(canvasId) {
             isMouseDown = true;
         }
         touchEventExtractPosition(event);
-        console.log('mouse down', event.clientX, event.clientY);
 
         const rect = canvas.getBoundingClientRect();
-        const mouseX = event.clientX - rect.left;
-        const mouseY = event.clientY - rect.top;
+        let mouseX = event.clientX - rect.left;
+        let mouseY = event.clientY - rect.top;
+
+        ({ mouseX, mouseY } = snapPositionToGrid(event, mouseX, mouseY));
 
         if (currentMode === Mode.ADD_VERTEX) {
             // If in add vertex mode, create a new vertex
@@ -252,17 +295,18 @@ function initializeGraphSim(canvasId) {
 
     function handleMouseMove(event) {
         touchEventExtractPosition(event);
+
+        const rect = canvas.getBoundingClientRect();
+        let mouseX = event.clientX - rect.left;
+        let mouseY = event.clientY - rect.top;
+
+        ({ mouseX, mouseY } = snapPositionToGrid(event, mouseX, mouseY));
+
         if ((currentMode === Mode.ADD_EDGE || currentMode === Mode.ADD_EDGE_REDIRECT) && selectedVertex) {
             // If in add edge mode and a vertex is selected, draw a temporary edge
-            const rect = canvas.getBoundingClientRect();
-            const mouseX = event.clientX - rect.left;
-            const mouseY = event.clientY - rect.top;
             drawGraph();
             drawEdge(selectedVertex, { x: mouseX, y: mouseY });
         } else if (currentMode === Mode.MOVE_VERTEX && draggedVertex) {
-            const rect = canvas.getBoundingClientRect();
-            const mouseX = event.clientX - rect.left;
-            const mouseY = event.clientY - rect.top;
             draggedVertex.x += mouseX - draggedStart.x;
             draggedVertex.y += mouseY - draggedStart.y;
             draggedStart = { x: mouseX, y: mouseY };
@@ -275,13 +319,14 @@ function initializeGraphSim(canvasId) {
             isMouseDown = false;
         }
         touchEventExtractPosition(event);
-        console.log('mouse up', event.clientX, event.clientY);
 
         if ((currentMode === Mode.ADD_EDGE || currentMode === Mode.ADD_EDGE_REDIRECT) && selectedVertex) {
             // If in add edge mode and a vertex is selected, find the end vertex under the mouse
             const rect = canvas.getBoundingClientRect();
-            const mouseX = event.clientX - rect.left;
-            const mouseY = event.clientY - rect.top;
+            let mouseX = event.clientX - rect.left;
+            let mouseY = event.clientY - rect.top;
+            ({ mouseX, mouseY } = snapPositionToGrid(event, mouseX, mouseY));
+
             let foundVertex = false;
             for (const vertex of vertices) {
                 const distance = Math.sqrt((mouseX - vertex.x) ** 2 + (mouseY - vertex.y) ** 2);
@@ -325,6 +370,29 @@ function initializeGraphSim(canvasId) {
         }
 
         drawGraph();
+    }
+
+    function snapPositionToGrid(event, mouseX, mouseY) {
+        // check if user is holding shift to snap to vertical/horizontal alignment with previous vertex
+        const intervalSize = 50;
+        if (event.shiftKey) {
+            const lastPosition = draggedVertex || selectedVertex;
+            if (lastPosition) {
+                const distanceX = Math.abs(mouseX - lastPosition.x);
+                const distanceY = Math.abs(mouseY - lastPosition.y);
+                if (distanceX < distanceY) {
+                    mouseX = lastPosition.x;
+                } else {
+                    mouseY = lastPosition.y;
+                }
+            }
+
+            // snap to grid
+            mouseX = Math.round(mouseX / intervalSize) * intervalSize;
+            mouseY = Math.round(mouseY / intervalSize) * intervalSize;
+        }
+
+        return { mouseX, mouseY };
     }
 
     function distanceToLine(x, y, startVertex, endVertex) {
@@ -374,6 +442,16 @@ function initializeGraphSim(canvasId) {
             changeMode(Mode.MOVE_VERTEX);
         } else if (event.key === '5') {
             changeMode(Mode.ADD_EDGE_REDIRECT);
+        } else if (event.key === 'e') {
+            visualizationOptions.debugEdges = !visualizationOptions.debugEdges;
+            drawGraph();
+        } else if (event.key === 'v') {
+            visualizationOptions.debugVertices = !visualizationOptions.debugVertices;
+            drawGraph();
+        } else if (event.key === 'Escape') {
+            selectedVertex = null;
+            draggedVertex = null;
+            drawGraph();
         }
     });
 
@@ -422,6 +500,23 @@ function initializeGraphSim(canvasId) {
             allIntersections = new Set([...allIntersections, ...intersections]);
             newEdges.push({ startVertex: prevVertex, endVertex: p2 });
         }
+
+        // make unique, do compare edges by x and by y to prevent duplicates, also check for reversed edges and deduplicate them too
+        // also find those that have the same start and end vertex and remove them
+        newEdges = newEdges.filter((edge, index) => {
+            for (let i = 0; i < newEdges.length; i++) {
+                const otherEdge = newEdges[i];
+                if (edge.startVertex.x === otherEdge.endVertex.x && edge.startVertex.y === otherEdge.endVertex.y &&
+                    edge.endVertex.x === otherEdge.startVertex.x && edge.endVertex.y === otherEdge.startVertex.y) {
+                    return false;
+                }
+            }
+            if (edge.startVertex.x === edge.endVertex.x && edge.startVertex.y === edge.endVertex.y) {
+                console.warn('Edge with same start and end vertex', edge)
+                return false;
+            }
+            return true;
+        });
 
         return {
             newEdges: newEdges,
@@ -552,11 +647,20 @@ function initializeGraphSim(canvasId) {
         const filteredPolygons = [];
         let lenience = -0.1;
 
+        const polygonAreas = {};
+        for (let i = 0; i < polygons.length; i++) {
+            polygonAreas[polygons[i]] = polygonArea(polygons[i]);
+        }
+
+        // sort polygons array by area, start with smallest
+        polygons.sort((a, b) => polygonAreas[a] - polygonAreas[b]);
+
         // Iterate through each polygon
         for (let i = 0; i < polygons.length; i++) {
             const polygon = polygons[i];
             const polygonAreaValue = polygonArea(polygon);
             let otherPolygonsAreaSum = 0;
+            let containedPolygons = [];
 
             // Check if the current polygon contains any point from other polygons
             for (let j = 0; j < polygons.length; j++) {
@@ -566,7 +670,8 @@ function initializeGraphSim(canvasId) {
                     // Check if any point from the other polygon is inside the current polygon
                     for (const point of otherPolygon) {
                         if (isPointInsidePolygon(point, polygon) && !isPointInPolygonPoints(point, polygon)) {
-                            otherPolygonsAreaSum += polygonArea(otherPolygon);
+                            otherPolygonsAreaSum += polygonAreas[otherPolygon];
+                            containedPolygons.push(otherPolygon);
                             break;
                         }
                     }
@@ -581,7 +686,7 @@ function initializeGraphSim(canvasId) {
             if (otherPolygonsAreaSum <= polygonAreaValue + lenience) {
                 filteredPolygons.push(polygon);
             } else {
-                // console.log("Container polygon found", polygon, otherPolygonsAreaSum, '>', polygonAreaValue + lenience);
+                console.log("Container polygon found", polygon, otherPolygonsAreaSum, '>', polygonAreaValue + lenience, containedPolygons);
             }
         }
 
@@ -701,43 +806,45 @@ function initializeGraphSim(canvasId) {
         return polygons;
     }
 
-    function drawDebugItems() {
-        const edgesSplitUp = splitEdges();
+    function drawDebugItems(edgesSplitUp) {
         const intersections = edgesSplitUp.intersections;
         const edges = edgesSplitUp.newEdges;
 
         // draw each line in a different color with a thickness of 2
         for (let i = 0; i < edges.length; i++) {
             const edge = edges[i];
-            ctx.beginPath();
-            ctx.moveTo(edge.startVertex.x, edge.startVertex.y);
-            ctx.lineTo(edge.endVertex.x, edge.endVertex.y);
-            ctx.strokeStyle = getRandomColor();
-            ctx.lineWidth = 3;
-            ctx.stroke();
-            ctx.closePath();
 
-            // write as text the coordinates of the start and end of the line rounded to 2 decimal places
-            ctx.fillStyle = '#000';
             ctx.font = "12px Arial";
-            ctx.fillText(`(${edge.startVertex.x.toFixed(2)}, ${edge.startVertex.y.toFixed(2)})`, edge.startVertex.x + 20, edge.startVertex.y - 20);
-            ctx.fillText(`(${edge.endVertex.x.toFixed(2)}, ${edge.endVertex.y.toFixed(2)})`, edge.endVertex.x + 20, edge.endVertex.y - 20);
+            if (visualizationOptions.debugVertices) {
+                // write as text the coordinates of the start and end of the line rounded to 2 decimal places
+                ctx.fillStyle = '#000';
+                ctx.fillText(`(${edge.startVertex.x.toFixed(2)}, ${edge.startVertex.y.toFixed(2)})`, edge.startVertex.x + 20, edge.startVertex.y - 20);
+                ctx.fillText(`(${edge.endVertex.x.toFixed(2)}, ${edge.endVertex.y.toFixed(2)})`, edge.endVertex.x + 20, edge.endVertex.y - 20);
+            }
 
-            // draw a small dot at the start and end of the line
-            ctx.beginPath();
-            let randomOffsetX = Math.random() * 16 - 8;
-            let randomOffsetY = Math.random() * 16 - 8;
-            ctx.arc(edge.startVertex.x + randomOffsetX, edge.startVertex.y + randomOffsetY, 3, 0, Math.PI * 2);
-            ctx.arc(edge.endVertex.x + randomOffsetX, edge.endVertex.y + randomOffsetY, 3, 0, Math.PI * 2);
-            ctx.fillStyle = '#000';
-            ctx.fill();
-            ctx.closePath();
+            // draw the index of the lines
+            if (visualizationOptions.debugEdges) {
+                ctx.beginPath();
+                ctx.moveTo(edge.startVertex.x, edge.startVertex.y);
+                ctx.lineTo(edge.endVertex.x, edge.endVertex.y);
+                ctx.strokeStyle = getRandomColor();
+                ctx.lineWidth = 3;
+                ctx.stroke();
+                ctx.closePath();
+
+                // make a white background for the text to make it more readable
+                ctx.fillStyle = 'rgba(255,255,255,0.7)';
+                ctx.fillRect((edge.startVertex.x + edge.endVertex.x) / 2 - 5, (edge.startVertex.y + edge.endVertex.y) / 2 - 12, 20, 16);
+                ctx.fillStyle = '#000';
+                ctx.fillText(i + '', ((edge.startVertex.x + edge.endVertex.x) / 2) - 3, (edge.startVertex.y + edge.endVertex.y) / 2);
+            }
         }
     }
 
     function getState() {
         return {
             vertices: vertices,
+            nonExistentVertices: nonExistentVertices,
             edges: edges,
             edgesSplitUp: edgesSplitUp,
             polygons: polygons
@@ -757,6 +864,7 @@ function initializeGraphSim(canvasId) {
         changeMode: changeMode,
         drawGraph: drawGraph,
         getState: getState,
+        loadGraph: loadGraph,
         clearGraph: clearGraph,
         addUpdateListener: addUpdateListener,
         addModeChangedListener: addModeChangedListener,

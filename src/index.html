@@ -140,7 +140,9 @@
             graphSim.changeMode(Mode.MOVE_VERTEX);
         });
         document.getElementById('removeAllElementsButton').addEventListener('click', function () {
-            graphSim.clearGraph();
+            if (confirm('Are you sure you want to remove all vertices and edges?')) {
+                graphSim.clearGraph();
+            }
         });
 
         graphSim.addModeChangedListener(function (mode) {
@@ -227,6 +229,23 @@
             const f = graph.polygons.length + 1; // outside face
             updateFormula(K, E, f);
             updateVisualizationOptions();
+
+            // save to local storage
+            if (graph.edges.length > 0) {
+                localStorage.setItem('gra-vis-graph-edges', JSON.stringify(graph.edges));
+            } else {
+                localStorage.removeItem('gra-vis-graph-edges');
+            }
+            if (graph.vertices.length > 0) {
+                localStorage.setItem('gra-vis-graph-vertices', JSON.stringify(graph.vertices));
+            } else {
+                localStorage.removeItem('gra-vis-graph-vertices');
+            }
+            if (graph.nonExistentVertices.length > 0) {
+                localStorage.setItem('gra-vis-graph-non-existent-vertices', JSON.stringify(graph.nonExistentVertices));
+            } else {
+                localStorage.removeItem('gra-vis-graph-non-existent-vertices');
+            }
         });
         updateVisualizationOptions();
         graphSim.changeMode(Mode.ADD_VERTEX);
@@ -234,7 +253,18 @@
         var popoverTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="popover"]'))
         var popoverList = popoverTriggerList.map(function (popoverTriggerEl) {
             return new bootstrap.Popover(popoverTriggerEl)
-        })
+        });
+
+        // attempt to load from local storage
+        if (localStorage.getItem('gra-vis-graph-edges') || localStorage.getItem('gra-vis-graph-vertices') || localStorage.getItem('gra-vis-graph-non-existent-vertices')) {
+            let edges = localStorage.getItem('gra-vis-graph-edges');
+            let vertices = localStorage.getItem('gra-vis-graph-vertices');
+            let nonExistentVertices = localStorage.getItem('gra-vis-graph-non-existent-vertices');
+            edges = edges ? JSON.parse(edges) : [];
+            vertices = vertices ? JSON.parse(vertices) : [];
+            nonExistentVertices = nonExistentVertices ? JSON.parse(nonExistentVertices) : [];
+            graphSim.loadGraph(vertices, edges, nonExistentVertices);
+        }
     });
 </script>
 </body>
