@@ -43,6 +43,8 @@ function initializeGraphSim(canvasId) {
     let nonExistentVertices = [];
     let edges = [];
 
+    let currentMaxVertexIndex = 0;
+
     let edgesSplitUp = [];
     let polygons = [];
 
@@ -78,6 +80,14 @@ function initializeGraphSim(canvasId) {
         }
         vertices = verticesData;
         nonExistentVertices = nonExistentVerticesData;
+
+        // check for vertices whether they have indices and update the currentMaxVertexIndex
+        for (const vertex of vertices) {
+            if (vertex.index > currentMaxVertexIndex) {
+                currentMaxVertexIndex = vertex.index;
+            }
+        }
+
         // find for each edge the corresponding vertex in the vertices array if present and replace by instance so that operations like moving vertices work to maintain the reference
         edgesData = edgesData.map(edge => {
             const startVertex = vertices.find(vertex => vertex.x === edge.startVertex.x && vertex.y === edge.startVertex.y);
@@ -123,8 +133,8 @@ function initializeGraphSim(canvasId) {
 
         if (visualizationOptions.showEdgeNames) {
             ctx.font = "18px Arial";
-            const backgroundLightness = (parseInt(color.substring(1, 3), 16) + parseInt(color.substring(3, 5), 16) + parseInt(color.substring(5, 7), 16)) / 3;
-            ctx.fillStyle = backgroundLightness > 100 ? '#000' : '#fff';
+            const backgroundLightness = rgb2hsv(...hexToRgb(color)).v;
+            ctx.fillStyle = backgroundLightness > 180 ? '#000' : '#fff';
             ctx.textAlign = 'center';
             ctx.textBaseline = 'middle';
             ctx.fillText(vertex.name || '', x, y);
@@ -139,6 +149,26 @@ function initializeGraphSim(canvasId) {
         ctx.lineTo(endVertex.x, endVertex.y);
         ctx.stroke();
         ctx.closePath();
+    }
+
+    function rgb2hsv(r, g, b) {
+        // https://stackoverflow.com/a/54070620/15925251
+        // input: r,g,b in [0,1], out: h in [0,360) and s,v in [0,1]
+        let v = Math.max(r, g, b), c = v - Math.min(r, g, b);
+        let h = c && ((v === r) ? (g - b) / c : ((v === g) ? 2 + (b - r) / c : 4 + (r - g) / c));
+        return {
+            h: 60 * (h < 0 ? h + 6 : h), s: v && c / v, v: v
+        };
+    }
+
+    function hexToRgb(hex) {
+        // https://stackoverflow.com/a/5624139/15925251
+        const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+        return result ? [
+            parseInt(result[1], 16),
+            parseInt(result[2], 16),
+            parseInt(result[3], 16)
+        ] : null;
     }
 
     function drawGraph() {
@@ -207,17 +237,17 @@ function initializeGraphSim(canvasId) {
         }
 
         if (visualizationOptions.showVertices) {
-            const sortedByColorVertices = vertices.sort((a, b) => {
-                return a.color?.localeCompare(b.color || '') || 0;
+            const sortedByIndexVertices = vertices.sort((a, b) => {
+                return a.index - b.index;
             });
             if (visualizationOptions.showEdgeNames) {
                 const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'.split('');
-                sortedByColorVertices.forEach((vertex, index) => {
+                sortedByIndexVertices.forEach((vertex, index) => {
                     vertex.name = alphabet[index % alphabet.length];
                 });
             }
 
-            for (const vertex of sortedByColorVertices) {
+            for (const vertex of sortedByIndexVertices) {
                 drawVertex(vertex);
             }
         }
@@ -261,7 +291,8 @@ function initializeGraphSim(canvasId) {
             vertices.push({
                 x: mouseX,
                 y: mouseY,
-                color: getRandomColor()
+                color: getRandomColor(),
+                index: ++currentMaxVertexIndex
             });
         } else if (currentMode === Mode.ADD_EDGE || currentMode === Mode.ADD_EDGE_REDIRECT) {
             if (selectedVertex) {
@@ -367,7 +398,8 @@ function initializeGraphSim(canvasId) {
                 const newVertex = {
                     x: mouseX,
                     y: mouseY,
-                    color: getRandomColor()
+                    color: getRandomColor(),
+                    index: ++currentMaxVertexIndex
                 };
                 if (currentMode === Mode.ADD_EDGE_REDIRECT) {
                     nonExistentVertices.push(newVertex);
@@ -397,20 +429,71 @@ function initializeGraphSim(canvasId) {
     }
 
     function snapPositionToGrid(event, mouseX, mouseY) {
-        // check if user is holding shift to snap to vertical/horizontal alignment with previous vertex
+        // check if user is holding control/meta key to snap to 8 directional input alignment with previous vertex
+        if (event.ctrlKey || event.metaKey) {
+            const lastPosition = draggedVertex || selectedVertex;
+
+            if (lastPosition) {
+                let dx = mouseX - lastPosition.x;
+                let dy = mouseY - lastPosition.y;
+
+                // Calculate the angle in degrees with respect to positive x-axis
+                const radianAngle = Math.atan2(dy, dx);
+                let angleDegrees = (radianAngle * 180) / Math.PI;
+
+                if (angleDegrees < 0) {
+                    angleDegrees += 360;
+                }
+
+                // Get the main direction based on the calculated angle
+                const getDirectionFromAngle = (angle) => {
+                    const directions = ['right', 'up-right', 'up', 'up-left', 'left', 'down-left', 'down', 'down-right'];
+                    const index = Math.round(angle / 45) % 8;
+                    return directions[index];
+                };
+
+                let direction = getDirectionFromAngle(angleDegrees);
+
+                let vector = { x: 0, y: 0 };
+                const diagonalLength = Math.sqrt(2) / 2;
+                switch (direction) {
+                    case 'up':
+                        vector = { x: 0, y: 1 };
+                        break;
+                    case 'down':
+                        vector = { x: 0, y: -1 };
+                        break;
+                    case 'right':
+                        vector = { x: 1, y: 0 };
+                        break;
+                    case 'left':
+                        vector = { x: -1, y: 0 };
+                        break;
+                    case 'up-right':
+                        vector = { x: diagonalLength, y: diagonalLength };
+                        break;
+                    case 'down-right':
+                        vector = { x: diagonalLength, y: -diagonalLength };
+                        break;
+                    case 'up-left':
+                        vector = { x: -diagonalLength, y: diagonalLength };
+                        break;
+                    case 'down-left':
+                        vector = { x: -diagonalLength, y: -diagonalLength };
+                        break;
+                }
+
+                // calculate the length of the difference vector
+                const length = Math.sqrt(dx ** 2 + dy ** 2);
+                // calculate the new position based on the last position and the vector
+                mouseX = lastPosition.x + vector.x * length;
+                mouseY = lastPosition.y + vector.y * length;
+            }
+        }
+
+        // check if user is holding shift key to snap to grid
         const intervalSize = 50;
         if (event.shiftKey) {
-            const lastPosition = draggedVertex || selectedVertex;
-            if (lastPosition) {
-                const distanceX = Math.abs(mouseX - lastPosition.x);
-                const distanceY = Math.abs(mouseY - lastPosition.y);
-                if (distanceX < distanceY) {
-                    mouseX = lastPosition.x;
-                } else {
-                    mouseY = lastPosition.y;
-                }
-            }
-
             // snap to grid
             mouseX = Math.round(mouseX / intervalSize) * intervalSize;
             mouseY = Math.round(mouseY / intervalSize) * intervalSize;
@@ -616,7 +699,7 @@ function initializeGraphSim(canvasId) {
             return filterPolygons(polygons)
                 .sort((a, b) => polygonArea(b) - polygonArea(a));
         } finally {
-            const endTimestamp = performance.now();
+            // const endTimestamp = performance.now();
             // console.log('Graph building:', graphTimestamp - startTimestamp, 'ms for', edges.length, 'edges');
             // console.log('Cycle finding:', cyclesTimestamp - graphTimestamp, 'ms for', cycles.length, 'cycles');
             // console.log('Polygon converting:', polygonsTimestamp - cyclesTimestamp, 'ms for', polygons.length, 'polygons');
@@ -651,13 +734,13 @@ function initializeGraphSim(canvasId) {
         const visited = new Set();
         const realCyclePaths = {};
 
-        function dfs(vertex, path, indent = ' ') {
+        function dfs(vertex, path) {
             visited.add(vertex);
             path.push(vertex);
 
             for (const neighbor of graph[vertex]) {
                 if (!visited.has(neighbor)) {
-                    dfs(neighbor, path, indent + ' |');
+                    dfs(neighbor, path);
                 } else if (path.length > 2 && neighbor === path[0]) {
                     const sortedCycle = path.slice().sort();
                     const joinedSortedCycle = sortedCycle.join(';');
@@ -699,10 +782,11 @@ function initializeGraphSim(canvasId) {
 ////
 
     function filterPolygons(polygons) {
-        const duplicates = removeDuplicatePolygons(polygons);
-        // console.log('removed duplicates', duplicates)
-        const containerPoints = removeContainerPointPolygons(duplicates);
-        return removeContainerPolygons(containerPoints);
+        let filtered = polygons;
+        filtered = removeDuplicatePolygons(filtered);
+        filtered = removeContainerPointPolygons(filtered);
+        filtered = removeContainerPolygons(filtered);
+        return filtered;
     }
 
     function removeContainerPolygons(polygons) {
