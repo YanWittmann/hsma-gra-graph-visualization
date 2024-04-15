@@ -63,6 +63,7 @@ function initializeGraphSim(canvasId) {
         showPolygons: true,
         showIntersections: true,
         showPolygonIndices: false,
+        showEdgeNames: false,
         debugEdges: false,
         debugVertices: false,
     }
@@ -103,18 +104,31 @@ function initializeGraphSim(canvasId) {
         drawGraph();
     }
 
-    function drawVertex(x, y, color) {
+    function drawVertex(vertex) {
+        const x = vertex.x;
+        const y = vertex.y;
+        const color = vertex.color;
+
         ctx.beginPath();
-        ctx.arc(x, y, vertexRadius + 2, 0, Math.PI * 2);
         ctx.fillStyle = '#000';
+        ctx.arc(x, y, vertexRadius + 2, 0, Math.PI * 2);
         ctx.fill();
         ctx.closePath();
 
         ctx.beginPath();
-        ctx.arc(x, y, vertexRadius, 0, Math.PI * 2);
         ctx.fillStyle = color;
+        ctx.arc(x, y, vertexRadius, 0, Math.PI * 2);
         ctx.fill();
         ctx.closePath();
+
+        if (visualizationOptions.showEdgeNames) {
+            ctx.font = "18px Arial";
+            const backgroundLightness = (parseInt(color.substring(1, 3), 16) + parseInt(color.substring(3, 5), 16) + parseInt(color.substring(5, 7), 16)) / 3;
+            ctx.fillStyle = backgroundLightness > 100 ? '#000' : '#fff';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(vertex.name || '', x, y);
+        }
     }
 
     function drawEdge(startVertex, endVertex, colorMode = true) {
@@ -193,8 +207,18 @@ function initializeGraphSim(canvasId) {
         }
 
         if (visualizationOptions.showVertices) {
-            for (const vertex of vertices) {
-                drawVertex(vertex.x, vertex.y, vertex.color);
+            const sortedByColorVertices = vertices.sort((a, b) => {
+                return a.color?.localeCompare(b.color || '') || 0;
+            });
+            if (visualizationOptions.showEdgeNames) {
+                const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'.split('');
+                sortedByColorVertices.forEach((vertex, index) => {
+                    vertex.name = alphabet[index % alphabet.length];
+                });
+            }
+
+            for (const vertex of sortedByColorVertices) {
+                drawVertex(vertex);
             }
         }
 
@@ -230,7 +254,7 @@ function initializeGraphSim(canvasId) {
         let mouseX = event.clientX - rect.left;
         let mouseY = event.clientY - rect.top;
 
-        ({mouseX, mouseY} = snapPositionToGrid(event, mouseX, mouseY));
+        ({ mouseX, mouseY } = snapPositionToGrid(event, mouseX, mouseY));
 
         if (currentMode === Mode.ADD_VERTEX) {
             // If in add vertex mode, create a new vertex
@@ -253,13 +277,6 @@ function initializeGraphSim(canvasId) {
                 }
             }
         } else if (currentMode === Mode.REMOVE_ELEMENT) {
-            for (const edge of edges) {
-                const distance = distanceToLine(mouseX, mouseY, edge.startVertex, edge.endVertex);
-                if (distance <= 10) { // threshold for easier selection
-                    edges = edges.filter(e => e !== edge);
-                    return;
-                }
-            }
             for (const vertex of vertices) {
                 const distance = Math.sqrt((mouseX - vertex.x) ** 2 + (mouseY - vertex.y) ** 2);
                 if (distance <= vertexRadius) {
@@ -269,12 +286,19 @@ function initializeGraphSim(canvasId) {
                     return;
                 }
             }
+            for (const edge of edges) {
+                const distance = distanceToLine(mouseX, mouseY, edge.startVertex, edge.endVertex);
+                if (distance <= 10) { // threshold for easier selection
+                    edges = edges.filter(e => e !== edge);
+                    return;
+                }
+            }
         } else if (currentMode === Mode.MOVE_VERTEX) {
             for (const vertex of vertices) {
                 const distance = Math.sqrt((mouseX - vertex.x) ** 2 + (mouseY - vertex.y) ** 2);
                 if (distance <= vertexRadius) {
                     draggedVertex = vertex;
-                    draggedStart = {x: mouseX, y: mouseY};
+                    draggedStart = { x: mouseX, y: mouseY };
                     break;
                 }
             }
@@ -283,7 +307,7 @@ function initializeGraphSim(canvasId) {
                     const distance = Math.sqrt((mouseX - vertex.x) ** 2 + (mouseY - vertex.y) ** 2);
                     if (distance <= vertexRadius) {
                         draggedVertex = vertex;
-                        draggedStart = {x: mouseX, y: mouseY};
+                        draggedStart = { x: mouseX, y: mouseY };
                         break;
                     }
                 }
@@ -300,16 +324,16 @@ function initializeGraphSim(canvasId) {
         let mouseX = event.clientX - rect.left;
         let mouseY = event.clientY - rect.top;
 
-        ({mouseX, mouseY} = snapPositionToGrid(event, mouseX, mouseY));
+        ({ mouseX, mouseY } = snapPositionToGrid(event, mouseX, mouseY));
 
         if ((currentMode === Mode.ADD_EDGE || currentMode === Mode.ADD_EDGE_REDIRECT) && selectedVertex) {
             // If in add edge mode and a vertex is selected, draw a temporary edge
             drawGraph();
-            drawEdge(selectedVertex, {x: mouseX, y: mouseY});
+            drawEdge(selectedVertex, { x: mouseX, y: mouseY });
         } else if (currentMode === Mode.MOVE_VERTEX && draggedVertex) {
             draggedVertex.x += mouseX - draggedStart.x;
             draggedVertex.y += mouseY - draggedStart.y;
-            draggedStart = {x: mouseX, y: mouseY};
+            draggedStart = { x: mouseX, y: mouseY };
             drawGraph();
         }
     }
@@ -325,14 +349,14 @@ function initializeGraphSim(canvasId) {
             const rect = canvas.getBoundingClientRect();
             let mouseX = event.clientX - rect.left;
             let mouseY = event.clientY - rect.top;
-            ({mouseX, mouseY} = snapPositionToGrid(event, mouseX, mouseY));
+            ({ mouseX, mouseY } = snapPositionToGrid(event, mouseX, mouseY));
 
             let foundVertex = false;
             for (const vertex of vertices) {
                 const distance = Math.sqrt((mouseX - vertex.x) ** 2 + (mouseY - vertex.y) ** 2);
                 if (distance <= vertexRadius) {
                     // If a vertex is clicked, add the edge to the array
-                    edges.push({startVertex: selectedVertex, endVertex: vertex});
+                    edges.push({ startVertex: selectedVertex, endVertex: vertex });
                     selectedVertex = null;
                     foundVertex = true;
                     break;
@@ -347,10 +371,10 @@ function initializeGraphSim(canvasId) {
                 };
                 if (currentMode === Mode.ADD_EDGE_REDIRECT) {
                     nonExistentVertices.push(newVertex);
-                    edges.push({startVertex: selectedVertex, endVertex: newVertex, countTowardsTotal: false});
+                    edges.push({ startVertex: selectedVertex, endVertex: newVertex, countTowardsTotal: false });
                 } else if (currentMode === Mode.ADD_EDGE) {
                     vertices.push(newVertex);
-                    edges.push({startVertex: selectedVertex, endVertex: newVertex});
+                    edges.push({ startVertex: selectedVertex, endVertex: newVertex });
                 }
                 selectedVertex = newVertex;
             }
@@ -392,7 +416,7 @@ function initializeGraphSim(canvasId) {
             mouseY = Math.round(mouseY / intervalSize) * intervalSize;
         }
 
-        return {mouseX, mouseY};
+        return { mouseX, mouseY };
     }
 
     function distanceToLine(x, y, startVertex, endVertex) {
@@ -434,18 +458,22 @@ function initializeGraphSim(canvasId) {
     document.addEventListener('keydown', event => {
         if (event.key === '1' || event.key === 'a') {
             changeMode(Mode.ADD_VERTEX);
-        } else if (event.key === '2' || event.key === 'c') {
-            changeMode(Mode.ADD_EDGE);
-        } else if (event.key === '3' || event.key === 'r') {
-            changeMode(Mode.REMOVE_ELEMENT);
-        } else if (event.key === '4' || event.key === 'g') {
-            changeMode(Mode.MOVE_VERTEX);
-        } else if (event.key === '5' || event.key === 'b') {
+        } else if (event.key === '2' || event.key === 'e' || event.key === 'c') {
+            if (currentMode === Mode.ADD_EDGE) {
+                changeMode(Mode.ADD_EDGE_REDIRECT);
+            } else {
+                changeMode(Mode.ADD_EDGE);
+            }
+        } else if (event.key === '3' || event.key === 'b') {
             changeMode(Mode.ADD_EDGE_REDIRECT);
-        } else if (event.key === 'e') {
+        } else if (event.key === '4' || event.key === 'r') {
+            changeMode(Mode.REMOVE_ELEMENT);
+        } else if (event.key === '5' || event.key === 'g') {
+            changeMode(Mode.MOVE_VERTEX);
+        } else if (event.key === 'q') {
             visualizationOptions.debugEdges = !visualizationOptions.debugEdges;
             drawGraph();
-        } else if (event.key === 'v') {
+        } else if (event.key === 'w') {
             visualizationOptions.debugVertices = !visualizationOptions.debugVertices;
             drawGraph();
         } else if (event.key === 'Escape') {
@@ -491,11 +519,11 @@ function initializeGraphSim(canvasId) {
         let allIntersections = new Set();
 
         for (const edge of edges) {
-            const {startVertex: p1, endVertex: p2} = edge;
+            const { startVertex: p1, endVertex: p2 } = edge;
             let intersections = [];
             for (const otherEdge of edges) {
                 if (edge !== otherEdge) {
-                    const {startVertex: p3, endVertex: p4} = otherEdge;
+                    const { startVertex: p3, endVertex: p4 } = otherEdge;
                     const intersection = lineIntersection(p1, p2, p3, p4);
                     if (intersection && !isVertex(intersection)) {
                         // add the intersection point if it's not already present
@@ -511,11 +539,11 @@ function initializeGraphSim(canvasId) {
             // split the edge into segments using the intersection points
             let prevVertex = p1;
             for (const intersection of intersections) {
-                newEdges.push({startVertex: prevVertex, endVertex: intersection});
+                newEdges.push({ startVertex: prevVertex, endVertex: intersection });
                 prevVertex = intersection;
             }
             allIntersections = new Set([...allIntersections, ...intersections]);
-            newEdges.push({startVertex: prevVertex, endVertex: p2});
+            newEdges.push({ startVertex: prevVertex, endVertex: p2 });
         }
 
         // make unique, do compare edges by x and by y to prevent duplicates, also check for reversed edges and deduplicate them too
@@ -566,7 +594,7 @@ function initializeGraphSim(canvasId) {
             return null;
         }
 
-        return {x: px, y: py};
+        return { x: px, y: py };
     }
 
     function distance(p1, p2) {
@@ -576,16 +604,10 @@ function initializeGraphSim(canvasId) {
 
     function findPolygons(edges) {
         // https://www.inesc-id.pt/ficheiros/publicacoes/936.pdf
-        // THIS TOOK ME 8 HOURS OH MY GOD
-        // it has one flaw, when the polygon is a container of other polygons that don't fill it completely,
-        // the outer containing polygon will incorrectly create the bounding box too large, but that's fine for now,
-        // since I mainly only need the amount of polygons and since they are drawn in order of size, the container
-        // polygons will be drawn first and the contained polygons will be drawn on top of them.
+        // Writing this code took me over 10 hours and I think it woks now, at least in 99% of the cases I tested.
         const graph = buildGraphFromEdges(edges);
-        // console.log('graph', graph)
         const cycles = findCycles(graph);
         const polygons = convertCyclesToPolygons(cycles);
-        // console.log('base polygons', polygons);
         return filterPolygons(polygons)
             .sort((a, b) => polygonArea(b) - polygonArea(a));
     }
@@ -615,7 +637,7 @@ function initializeGraphSim(canvasId) {
         const cycles = [];
         const visited = new Set();
 
-        function dfs(vertex, path, indent=' ') {
+        function dfs(vertex, path, indent = ' ') {
             visited.add(vertex);
             path.push(vertex);
             // console.log(indent, 'calling dfs', vertex, path);
@@ -626,7 +648,7 @@ function initializeGraphSim(canvasId) {
                 if (!visited.has(neighbor)) {
                     dfs(neighbor, path, indent + ' |');
                 } else if (path.length > 2 && neighbor === path[0]) {
-                    // console.log(indent, 'found cycle 1', path);
+                    // console.log(indent, 'found cycle', path);
                     cycles.push([...path]);
                 } else {
                     // console.log(indent, 'not a cycle', path);
@@ -654,7 +676,7 @@ function initializeGraphSim(canvasId) {
             const polygon = [];
             for (const vertex of cycle) {
                 const [x, y] = vertex.split(',').map(Number);
-                polygon.push({x, y});
+                polygon.push({ x, y });
             }
             polygons.push(polygon);
         }
@@ -809,7 +831,7 @@ function initializeGraphSim(canvasId) {
             x += point.x;
             y += point.y;
         }
-        return {x: x / polygon.length, y: y / polygon.length};
+        return { x: x / polygon.length, y: y / polygon.length };
     }
 
     function applyPolygonColor(polygons) {
@@ -825,7 +847,7 @@ function initializeGraphSim(canvasId) {
             '#934793', '#a34a85', '#a34242'
         ];
         for (let i = 0; i < polygons.length; i++) {
-            polygons[i] = {points: polygons[i], color: colors[i % colors.length]};
+            polygons[i] = { points: polygons[i], color: colors[i % colors.length] };
         }
         return polygons;
     }

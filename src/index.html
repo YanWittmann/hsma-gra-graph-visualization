@@ -24,32 +24,36 @@
             <div class="btn-group btn-block mb-2" role="group" aria-label="Basic example">
                 <button type="button" id="newVertexButton" class="btn btn-primary btn-change-gra-mode active"
                         data-bs-toggle="popover" data-bs-trigger="hover" data-bs-placement="bottom"
-                        title="Add Vertex" data-bs-content="Click to add a new vertex">
+                        data-bs-only-on-pc="true" title="Add Vertex" data-bs-content="Click to add a new vertex">
                     <i class="bi bi-plus-circle-fill"></i>
                 </button>
                 <button type="button" id="createEdgeButton" class="btn btn-primary btn-change-gra-mode"
                         data-bs-toggle="popover" data-bs-trigger="hover" data-bs-placement="bottom" title="Add Edge"
+                        data-bs-only-on-pc="true"
                         data-bs-content="Hold down on a vertex and drag to another vertex to create an edge, or drag into empty space to create a new vertex.">
                     <i class="bi bi-node-plus-fill"></i>
                 </button>
                 <button type="button" id="createEdgeRedirectButton" class="btn btn-primary btn-change-gra-mode"
                         data-bs-toggle="popover" data-bs-trigger="hover" data-bs-placement="bottom"
-                        title="Add Redirected Edge"
+                        title="Add Redirected Edge" data-bs-only-on-pc="true"
                         data-bs-content="Hold down on a vertex and drag into empty space continuously until you reach a desired vertex to create multiple redirection points, connected by a single logical edge.">
                     <i class="bi bi-share-fill"></i>
                 </button>
                 <button type="button" id="moveVertexButton" class="btn btn-secondary btn-change-gra-mode"
                         data-bs-toggle="popover" data-bs-trigger="hover" data-bs-placement="bottom"
+                        data-bs-only-on-pc="true"
                         title="Move Vertex" data-bs-content="Click and drag a vertex to move it.">
                     <i class="bi bi-arrows-move"></i>
                 </button>
-                <button type="button" id="removeElementButton" class="btn btn-warning btn-change-gra-mode"
+                <button type="button" id="removeElementButton" class="btn btn-warning btn-sm btn-change-gra-mode"
                         data-bs-toggle="popover" data-bs-trigger="hover" data-bs-placement="bottom"
+                        data-bs-only-on-pc="true"
                         title="Remove Element" data-bs-content="Click on a vertex or edge to remove it.">
                     <i class="bi bi-ban"></i>
                 </button>
-                <button type="button" id="removeAllElementsButton" class="btn btn-danger btn-change-gra-mode"
+                <button type="button" id="removeAllElementsButton" class="btn btn-danger btn-sm btn-change-gra-mode"
                         data-bs-toggle="popover" data-bs-trigger="hover" data-bs-placement="bottom"
+                        data-bs-only-on-pc="true"
                         title="Clear Graph" data-bs-content="Click to remove all vertices and edges.">
                     <i class="bi bi-trash-fill"></i>
                 </button>
@@ -179,6 +183,7 @@
                 label: 'Show Intersections and Redirect points',
                 icon: 'bi bi-bounding-box-circles'
             },
+            { option: 'showEdgeNames', label: 'Show Labels for Edges', icon: 'bi bi-2-circle' },
             { option: 'showPolygonIndices', label: 'Show Polygon Indices', icon: 'bi bi-list-ol' },
         ];
         const visualizationOptionsContainer = document.getElementById('visualizationOptions');
