@@ -605,11 +605,24 @@ function initializeGraphSim(canvasId) {
     function findPolygons(edges) {
         // https://www.inesc-id.pt/ficheiros/publicacoes/936.pdf
         // Writing this code took me over 10 hours and I think it woks now, at least in 99% of the cases I tested.
+        // const startTimestamp = performance.now();
         const graph = buildGraphFromEdges(edges);
+        // const graphTimestamp = performance.now();
         const cycles = findCycles(graph);
+        // const cyclesTimestamp = performance.now();
         const polygons = convertCyclesToPolygons(cycles);
-        return filterPolygons(polygons)
-            .sort((a, b) => polygonArea(b) - polygonArea(a));
+        // const polygonsTimestamp = performance.now();
+        try {
+            return filterPolygons(polygons)
+                .sort((a, b) => polygonArea(b) - polygonArea(a));
+        } finally {
+            const endTimestamp = performance.now();
+            // console.log('Graph building:', graphTimestamp - startTimestamp, 'ms for', edges.length, 'edges');
+            // console.log('Cycle finding:', cyclesTimestamp - graphTimestamp, 'ms for', cycles.length, 'cycles');
+            // console.log('Polygon converting:', polygonsTimestamp - cyclesTimestamp, 'ms for', polygons.length, 'polygons');
+            // console.log('Polygon filtering:', endTimestamp - polygonsTimestamp, 'ms');
+            // console.log('Total:', endTimestamp - startTimestamp, 'ms');
+        }
     }
 
     function buildGraphFromEdges(edges) {
@@ -634,24 +647,24 @@ function initializeGraphSim(canvasId) {
     }
 
     function findCycles(graph) {
-        const cycles = [];
+        const cycles = new Set();
         const visited = new Set();
+        const realCyclePaths = {};
 
         function dfs(vertex, path, indent = ' ') {
             visited.add(vertex);
             path.push(vertex);
-            // console.log(indent, 'calling dfs', vertex, path);
-            // console.log(indent, 'available neighbors', graph[vertex]);
 
             for (const neighbor of graph[vertex]) {
-                // console.log(indent, 'checking neighbor', neighbor, path);
                 if (!visited.has(neighbor)) {
                     dfs(neighbor, path, indent + ' |');
                 } else if (path.length > 2 && neighbor === path[0]) {
-                    // console.log(indent, 'found cycle', path);
-                    cycles.push([...path]);
-                } else {
-                    // console.log(indent, 'not a cycle', path);
+                    const sortedCycle = path.slice().sort();
+                    const joinedSortedCycle = sortedCycle.join(';');
+                    if (!cycles.has(joinedSortedCycle)) {
+                        cycles.add(joinedSortedCycle);
+                        realCyclePaths[joinedSortedCycle] = path.slice().join(';');
+                    }
                 }
             }
 
@@ -661,12 +674,11 @@ function initializeGraphSim(canvasId) {
 
         for (const vertex in graph) {
             if (!visited.has(vertex)) {
-                // console.warn('starting checking vertex', vertex);
                 dfs(vertex, []);
             }
         }
 
-        return cycles;
+        return Array.from(cycles).map(cycle => realCyclePaths[cycle].split(';'));
     }
 
     function convertCyclesToPolygons(cycles) {
