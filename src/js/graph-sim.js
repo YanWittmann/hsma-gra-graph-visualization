@@ -230,7 +230,7 @@ function initializeGraphSim(canvasId) {
         let mouseX = event.clientX - rect.left;
         let mouseY = event.clientY - rect.top;
 
-        ({ mouseX, mouseY } = snapPositionToGrid(event, mouseX, mouseY));
+        ({mouseX, mouseY} = snapPositionToGrid(event, mouseX, mouseY));
 
         if (currentMode === Mode.ADD_VERTEX) {
             // If in add vertex mode, create a new vertex
@@ -274,7 +274,7 @@ function initializeGraphSim(canvasId) {
                 const distance = Math.sqrt((mouseX - vertex.x) ** 2 + (mouseY - vertex.y) ** 2);
                 if (distance <= vertexRadius) {
                     draggedVertex = vertex;
-                    draggedStart = { x: mouseX, y: mouseY };
+                    draggedStart = {x: mouseX, y: mouseY};
                     break;
                 }
             }
@@ -283,7 +283,7 @@ function initializeGraphSim(canvasId) {
                     const distance = Math.sqrt((mouseX - vertex.x) ** 2 + (mouseY - vertex.y) ** 2);
                     if (distance <= vertexRadius) {
                         draggedVertex = vertex;
-                        draggedStart = { x: mouseX, y: mouseY };
+                        draggedStart = {x: mouseX, y: mouseY};
                         break;
                     }
                 }
@@ -300,16 +300,16 @@ function initializeGraphSim(canvasId) {
         let mouseX = event.clientX - rect.left;
         let mouseY = event.clientY - rect.top;
 
-        ({ mouseX, mouseY } = snapPositionToGrid(event, mouseX, mouseY));
+        ({mouseX, mouseY} = snapPositionToGrid(event, mouseX, mouseY));
 
         if ((currentMode === Mode.ADD_EDGE || currentMode === Mode.ADD_EDGE_REDIRECT) && selectedVertex) {
             // If in add edge mode and a vertex is selected, draw a temporary edge
             drawGraph();
-            drawEdge(selectedVertex, { x: mouseX, y: mouseY });
+            drawEdge(selectedVertex, {x: mouseX, y: mouseY});
         } else if (currentMode === Mode.MOVE_VERTEX && draggedVertex) {
             draggedVertex.x += mouseX - draggedStart.x;
             draggedVertex.y += mouseY - draggedStart.y;
-            draggedStart = { x: mouseX, y: mouseY };
+            draggedStart = {x: mouseX, y: mouseY};
             drawGraph();
         }
     }
@@ -325,14 +325,14 @@ function initializeGraphSim(canvasId) {
             const rect = canvas.getBoundingClientRect();
             let mouseX = event.clientX - rect.left;
             let mouseY = event.clientY - rect.top;
-            ({ mouseX, mouseY } = snapPositionToGrid(event, mouseX, mouseY));
+            ({mouseX, mouseY} = snapPositionToGrid(event, mouseX, mouseY));
 
             let foundVertex = false;
             for (const vertex of vertices) {
                 const distance = Math.sqrt((mouseX - vertex.x) ** 2 + (mouseY - vertex.y) ** 2);
                 if (distance <= vertexRadius) {
                     // If a vertex is clicked, add the edge to the array
-                    edges.push({ startVertex: selectedVertex, endVertex: vertex });
+                    edges.push({startVertex: selectedVertex, endVertex: vertex});
                     selectedVertex = null;
                     foundVertex = true;
                     break;
@@ -347,10 +347,10 @@ function initializeGraphSim(canvasId) {
                 };
                 if (currentMode === Mode.ADD_EDGE_REDIRECT) {
                     nonExistentVertices.push(newVertex);
-                    edges.push({ startVertex: selectedVertex, endVertex: newVertex, countTowardsTotal: false });
+                    edges.push({startVertex: selectedVertex, endVertex: newVertex, countTowardsTotal: false});
                 } else if (currentMode === Mode.ADD_EDGE) {
                     vertices.push(newVertex);
-                    edges.push({ startVertex: selectedVertex, endVertex: newVertex });
+                    edges.push({startVertex: selectedVertex, endVertex: newVertex});
                 }
                 selectedVertex = newVertex;
             }
@@ -392,7 +392,7 @@ function initializeGraphSim(canvasId) {
             mouseY = Math.round(mouseY / intervalSize) * intervalSize;
         }
 
-        return { mouseX, mouseY };
+        return {mouseX, mouseY};
     }
 
     function distanceToLine(x, y, startVertex, endVertex) {
@@ -491,11 +491,11 @@ function initializeGraphSim(canvasId) {
         let allIntersections = new Set();
 
         for (const edge of edges) {
-            const { startVertex: p1, endVertex: p2 } = edge;
+            const {startVertex: p1, endVertex: p2} = edge;
             let intersections = [];
             for (const otherEdge of edges) {
                 if (edge !== otherEdge) {
-                    const { startVertex: p3, endVertex: p4 } = otherEdge;
+                    const {startVertex: p3, endVertex: p4} = otherEdge;
                     const intersection = lineIntersection(p1, p2, p3, p4);
                     if (intersection && !isVertex(intersection)) {
                         // add the intersection point if it's not already present
@@ -511,11 +511,11 @@ function initializeGraphSim(canvasId) {
             // split the edge into segments using the intersection points
             let prevVertex = p1;
             for (const intersection of intersections) {
-                newEdges.push({ startVertex: prevVertex, endVertex: intersection });
+                newEdges.push({startVertex: prevVertex, endVertex: intersection});
                 prevVertex = intersection;
             }
             allIntersections = new Set([...allIntersections, ...intersections]);
-            newEdges.push({ startVertex: prevVertex, endVertex: p2 });
+            newEdges.push({startVertex: prevVertex, endVertex: p2});
         }
 
         // make unique, do compare edges by x and by y to prevent duplicates, also check for reversed edges and deduplicate them too
@@ -566,7 +566,7 @@ function initializeGraphSim(canvasId) {
             return null;
         }
 
-        return { x: px, y: py };
+        return {x: px, y: py};
     }
 
     function distance(p1, p2) {
@@ -582,17 +582,20 @@ function initializeGraphSim(canvasId) {
         // since I mainly only need the amount of polygons and since they are drawn in order of size, the container
         // polygons will be drawn first and the contained polygons will be drawn on top of them.
         const graph = buildGraphFromEdges(edges);
+        // console.log('graph', graph)
         const cycles = findCycles(graph);
         const polygons = convertCyclesToPolygons(cycles);
-        return filterPolygons(polygons).sort((a, b) => polygonArea(b) - polygonArea(a));
+        // console.log('base polygons', polygons);
+        return filterPolygons(polygons)
+            .sort((a, b) => polygonArea(b) - polygonArea(a));
     }
 
     function buildGraphFromEdges(edges) {
         const graph = {};
 
         for (const edge of edges) {
-            const startKey = `${edge.startVertex.x},${edge.startVertex.y}`;
-            const endKey = `${edge.endVertex.x},${edge.endVertex.y}`;
+            const startKey = `${edge.startVertex.x.toFixed(4)},${edge.startVertex.y.toFixed(4)}`;
+            const endKey = `${edge.endVertex.x.toFixed(4)},${edge.endVertex.y.toFixed(4)}`;
 
             if (!graph[startKey]) {
                 graph[startKey] = [];
@@ -612,15 +615,21 @@ function initializeGraphSim(canvasId) {
         const cycles = [];
         const visited = new Set();
 
-        function dfs(vertex, path) {
+        function dfs(vertex, path, indent=' ') {
             visited.add(vertex);
             path.push(vertex);
+            // console.log(indent, 'calling dfs', vertex, path);
+            // console.log(indent, 'available neighbors', graph[vertex]);
 
             for (const neighbor of graph[vertex]) {
+                // console.log(indent, 'checking neighbor', neighbor, path);
                 if (!visited.has(neighbor)) {
-                    dfs(neighbor, path);
+                    dfs(neighbor, path, indent + ' |');
                 } else if (path.length > 2 && neighbor === path[0]) {
+                    // console.log(indent, 'found cycle 1', path);
                     cycles.push([...path]);
+                } else {
+                    // console.log(indent, 'not a cycle', path);
                 }
             }
 
@@ -630,6 +639,7 @@ function initializeGraphSim(canvasId) {
 
         for (const vertex in graph) {
             if (!visited.has(vertex)) {
+                // console.warn('starting checking vertex', vertex);
                 dfs(vertex, []);
             }
         }
@@ -644,7 +654,7 @@ function initializeGraphSim(canvasId) {
             const polygon = [];
             for (const vertex of cycle) {
                 const [x, y] = vertex.split(',').map(Number);
-                polygon.push({ x, y });
+                polygon.push({x, y});
             }
             polygons.push(polygon);
         }
@@ -656,6 +666,7 @@ function initializeGraphSim(canvasId) {
 
     function filterPolygons(polygons) {
         const duplicates = removeDuplicatePolygons(polygons);
+        // console.log('removed duplicates', duplicates)
         const containerPoints = removeContainerPointPolygons(duplicates);
         return removeContainerPolygons(containerPoints);
     }
@@ -664,13 +675,8 @@ function initializeGraphSim(canvasId) {
         const filteredPolygons = [];
         let lenience = -0.1;
 
-        const polygonAreas = {};
-        for (let i = 0; i < polygons.length; i++) {
-            polygonAreas[polygons[i]] = polygonArea(polygons[i]);
-        }
-
         // sort polygons array by area, start with smallest
-        polygons.sort((a, b) => polygonAreas[a] - polygonAreas[b]);
+        polygons.sort((a, b) => polygonArea(a) - polygonArea(b));
 
         // Iterate through each polygon
         for (let i = 0; i < polygons.length; i++) {
@@ -687,7 +693,7 @@ function initializeGraphSim(canvasId) {
                     // Check if any point from the other polygon is inside the current polygon
                     for (const point of otherPolygon) {
                         if (isPointInsidePolygon(point, polygon) && !isPointInPolygonPoints(point, polygon)) {
-                            otherPolygonsAreaSum += polygonAreas[otherPolygon];
+                            otherPolygonsAreaSum += polygonArea(otherPolygon);
                             containedPolygons.push(otherPolygon);
                             break;
                         }
@@ -701,6 +707,7 @@ function initializeGraphSim(canvasId) {
 
             // If the current polygon is not a container polygon, add it to the filtered polygons
             if (otherPolygonsAreaSum <= polygonAreaValue + lenience) {
+                // console.log("Container polygon not found", polygon, otherPolygonsAreaSum, '<=', polygonAreaValue + lenience, containedPolygons)
                 filteredPolygons.push(polygon);
             } else {
                 // console.log("Container polygon found", polygon, otherPolygonsAreaSum, '>', polygonAreaValue + lenience, containedPolygons);
@@ -802,7 +809,7 @@ function initializeGraphSim(canvasId) {
             x += point.x;
             y += point.y;
         }
-        return { x: x / polygon.length, y: y / polygon.length };
+        return {x: x / polygon.length, y: y / polygon.length};
     }
 
     function applyPolygonColor(polygons) {
@@ -818,7 +825,7 @@ function initializeGraphSim(canvasId) {
             '#934793', '#a34a85', '#a34242'
         ];
         for (let i = 0; i < polygons.length; i++) {
-            polygons[i] = { points: polygons[i], color: colors[i % colors.length] };
+            polygons[i] = {points: polygons[i], color: colors[i % colors.length]};
         }
         return polygons;
     }
