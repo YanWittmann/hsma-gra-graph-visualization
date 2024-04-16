@@ -125,152 +125,295 @@
 
 <script src="js/graph-sim.js"></script>
 <script>
+    async function decompressBlob(blob) {
+        const ds = new DecompressionStream("gzip");
+        const decompressedStream = blob.stream().pipeThrough(ds);
+        return await new Response(decompressedStream).blob();
+    }
+
+    function _arrayBufferToBase64(buffer) {
+        let binary = '';
+        const bytes = new Uint8Array(buffer);
+        const len = bytes.byteLength;
+        for (let i = 0; i < len; i++) {
+            binary += String.fromCharCode(bytes[i]);
+        }
+        return window.btoa(binary);
+    }
+
+    function compressGzip(string, encoding) {
+        const byteArray = new TextEncoder().encode(string);
+        const cs = new CompressionStream(encoding);
+        const writer = cs.writable.getWriter();
+        writer.write(byteArray);
+        writer.close();
+        return new Response(cs.readable).arrayBuffer();
+    }
+
+
+    /**
+     * https://stackoverflow.com/questions/16245767/creating-a-blob-from-a-base64-string-in-javascript
+     * Convert a base64 string to a Blob object.
+     * @param base64Data {string}
+     * @param contentType {string}
+     * @returns {Blob}
+     */
+    function base64toBlob(base64Data, contentType) {
+        contentType = contentType || '';
+        const sliceSize = 1024;
+        const byteCharacters = atob(base64Data);
+        const bytesLength = byteCharacters.length;
+        const slicesCount = Math.ceil(bytesLength / sliceSize);
+        const byteArrays = new Array(slicesCount);
+
+        for (let sliceIndex = 0; sliceIndex < slicesCount; ++sliceIndex) {
+            const begin = sliceIndex * sliceSize;
+            const end = Math.min(begin + sliceSize, bytesLength);
+
+            const bytes = new Array(end - begin);
+            for (let offset = begin, i = 0; offset < end; ++i, ++offset) {
+                bytes[i] = byteCharacters[offset].charCodeAt(0);
+            }
+            byteArrays[sliceIndex] = new Uint8Array(bytes);
+        }
+        return new Blob(byteArrays, { type: contentType });
+    }
+
     window.addEventListener('DOMContentLoaded', function () {
-        const graphSim = initializeGraphSim('graphCanvas');
+            const graphSim = initializeGraphSim('graphCanvas');
 
-        document.getElementById('newVertexButton').addEventListener('click', function () {
-            graphSim.changeMode(Mode.ADD_VERTEX);
-        });
-        document.getElementById('createEdgeButton').addEventListener('click', function () {
-            graphSim.changeMode(Mode.ADD_EDGE);
-        });
-        document.getElementById('createEdgeRedirectButton').addEventListener('click', function () {
-            graphSim.changeMode(Mode.ADD_EDGE_REDIRECT);
-        });
-        document.getElementById('removeElementButton').addEventListener('click', function () {
-            graphSim.changeMode(Mode.REMOVE_ELEMENT);
-        });
-        document.getElementById('moveVertexButton').addEventListener('click', function () {
-            graphSim.changeMode(Mode.MOVE_VERTEX);
-        });
-        document.getElementById('removeAllElementsButton').addEventListener('click', function () {
-            if (confirm('Are you sure you want to remove all vertices and edges?')) {
-                graphSim.clearGraph();
-            }
-        });
-
-        graphSim.addModeChangedListener(function (mode) {
-            const buttons = document.querySelectorAll('.btn-change-gra-mode');
-            buttons.forEach(function (button) {
-                button.classList.remove('active');
+            document.getElementById('newVertexButton').addEventListener('click', function () {
+                graphSim.changeMode(Mode.ADD_VERTEX);
+            });
+            document.getElementById('createEdgeButton').addEventListener('click', function () {
+                graphSim.changeMode(Mode.ADD_EDGE);
+            });
+            document.getElementById('createEdgeRedirectButton').addEventListener('click', function () {
+                graphSim.changeMode(Mode.ADD_EDGE_REDIRECT);
+            });
+            document.getElementById('removeElementButton').addEventListener('click', function () {
+                graphSim.changeMode(Mode.REMOVE_ELEMENT);
+            });
+            document.getElementById('moveVertexButton').addEventListener('click', function () {
+                graphSim.changeMode(Mode.MOVE_VERTEX);
+            });
+            document.getElementById('removeAllElementsButton').addEventListener('click', function () {
+                if (confirm('Are you sure you want to remove all vertices and edges?')) {
+                    graphSim.clearGraph();
+                }
             });
 
-            switch (mode) {
-                case Mode.ADD_VERTEX:
-                    document.getElementById('newVertexButton').classList.add('active');
-                    break;
-                case Mode.ADD_EDGE:
-                    document.getElementById('createEdgeButton').classList.add('active');
-                    break;
-                case Mode.ADD_EDGE_REDIRECT:
-                    document.getElementById('createEdgeRedirectButton').classList.add('active');
-                    break;
-                case Mode.REMOVE_ELEMENT:
-                    document.getElementById('removeElementButton').classList.add('active');
-                    break;
-                case Mode.MOVE_VERTEX:
-                    document.getElementById('moveVertexButton').classList.add('active');
-                    break;
-            }
-        });
+            graphSim.addModeChangedListener(function (mode) {
+                const buttons = document.querySelectorAll('.btn-change-gra-mode');
+                buttons.forEach(function (button) {
+                    button.classList.remove('active');
+                });
 
-        const visualizationOptionsLabels = [
-            { option: 'showVertices', label: 'Show Vertices', icon: 'bi bi-circle-fill' },
-            { option: 'showEdges', label: 'Show Edges', icon: 'bi bi-link-45deg' },
-            { option: 'showPolygons', label: 'Show Polygons', icon: 'bi bi-pentagon-fill' },
-            {
-                option: 'showIntersections',
-                label: 'Show Intersections and Redirect points',
-                icon: 'bi bi-bounding-box-circles'
-            },
-            { option: 'showEdgeNames', label: 'Show Labels for Edges', icon: 'bi bi-2-circle' },
-            { option: 'showPolygonIndices', label: 'Show Polygon Indices', icon: 'bi bi-list-ol' },
-        ];
-        const visualizationOptionsContainer = document.getElementById('visualizationOptions');
-
-        visualizationOptionsLabels.forEach(({ option, label }) => {
-            const button = document.createElement('button');
-            button.classList.add('btn', 'btn-secondary', 'btn-block', 'btn-sm');
-            button.id = 'btn-option-' + option;
-            button.title = label;
-
-            // initialize the button with a popover
-            button.setAttribute('data-bs-toggle', 'popover');
-            button.setAttribute('data-bs-trigger', 'hover');
-            button.setAttribute('data-bs-placement', 'bottom');
-
-            const icon = document.createElement('i');
-            icon.className = icon.className + visualizationOptionsLabels.find((item) => item.option === option).icon;
-            button.appendChild(icon);
-
-            button.addEventListener('click', () => {
-                graphSim.visualizationOptions[option] = !graphSim.visualizationOptions[option];
-                button.classList.toggle('active');
-                graphSim.drawGraph();
+                switch (mode) {
+                    case Mode.ADD_VERTEX:
+                        document.getElementById('newVertexButton').classList.add('active');
+                        break;
+                    case Mode.ADD_EDGE:
+                        document.getElementById('createEdgeButton').classList.add('active');
+                        break;
+                    case Mode.ADD_EDGE_REDIRECT:
+                        document.getElementById('createEdgeRedirectButton').classList.add('active');
+                        break;
+                    case Mode.REMOVE_ELEMENT:
+                        document.getElementById('removeElementButton').classList.add('active');
+                        break;
+                    case Mode.MOVE_VERTEX:
+                        document.getElementById('moveVertexButton').classList.add('active');
+                        break;
+                }
             });
-            visualizationOptionsContainer.appendChild(button);
-        });
 
-        const updateVisualizationOptions = () => {
-            // get the visualization options and update active state of the buttons
-            const visualizationOptions = graphSim.visualizationOptions;
-            visualizationOptionsLabels.forEach(({ option }) => {
-                const button = document.getElementById('btn-option-' + option);
-                if (button) {
-                    if (visualizationOptions[option]) {
-                        button.classList.add('active');
-                    } else {
-                        button.classList.remove('active');
+            const visualizationOptionsLabels = [
+                { option: 'showVertices', label: 'Show Vertices', icon: 'bi bi-circle-fill' },
+                { option: 'showEdges', label: 'Show Edges', icon: 'bi bi-link-45deg' },
+                { option: 'showPolygons', label: 'Show Polygons', icon: 'bi bi-pentagon-fill' },
+                {
+                    option: 'showIntersections',
+                    label: 'Show Intersections and Redirect points',
+                    icon: 'bi bi-bounding-box-circles'
+                },
+                { option: 'showEdgeNames', label: 'Show Labels for Edges', icon: 'bi bi-2-circle' },
+                { option: 'showPolygonIndices', label: 'Show Polygon Indices', icon: 'bi bi-list-ol' },
+            ];
+            const visualizationOptionsContainer = document.getElementById('visualizationOptions');
+
+            visualizationOptionsLabels.forEach(({ option, label }) => {
+                const button = document.createElement('button');
+                button.classList.add('btn', 'btn-secondary', 'btn-block', 'btn-sm');
+                button.id = 'btn-option-' + option;
+                button.title = label;
+
+                // initialize the button with a popover
+                button.setAttribute('data-bs-toggle', 'popover');
+                button.setAttribute('data-bs-trigger', 'hover');
+                button.setAttribute('data-bs-placement', 'bottom');
+
+                const icon = document.createElement('i');
+                icon.className = icon.className + visualizationOptionsLabels.find((item) => item.option === option).icon;
+                button.appendChild(icon);
+
+                button.addEventListener('click', () => {
+                    graphSim.visualizationOptions[option] = !graphSim.visualizationOptions[option];
+                    button.classList.toggle('active');
+                    graphSim.drawGraph();
+                });
+                visualizationOptionsContainer.appendChild(button);
+            });
+
+            const updateVisualizationOptions = () => {
+                // get the visualization options and update active state of the buttons
+                const visualizationOptions = graphSim.visualizationOptions;
+                visualizationOptionsLabels.forEach(({ option }) => {
+                    const button = document.getElementById('btn-option-' + option);
+                    if (button) {
+                        if (visualizationOptions[option]) {
+                            button.classList.add('active');
+                        } else {
+                            button.classList.remove('active');
+                        }
                     }
+                });
+            }
+
+            let saveTimeout = null;
+
+            graphSim.addUpdateListener((graph) => {
+                const K = graph.edges
+                    .filter(edge => edge.countTowardsTotal !== false)
+                    .length;
+                const E = graph.vertices.length;
+                const f = graph.polygons.length + 1; // outside face
+                updateFormula(K, E, f);
+                updateVisualizationOptions();
+
+                if (saveTimeout) {
+                    clearTimeout(saveTimeout);
+                }
+                saveTimeout = setTimeout(() => {
+                    const url = new URL(window.location.href);
+                    const searchParams = new URLSearchParams(url.search);
+                    searchParams.delete('gra-vis-graph');
+                    const payload = JSON.stringify({
+                        edges: graph.edges,
+                        vertices: graph.vertices,
+                        nonExistentVertices: graph.nonExistentVertices
+                    });
+                    if (graph.edges.length > 0 || graph.vertices.length > 0 || graph.nonExistentVertices.length > 0) {
+                        compressGzip(payload, 'gzip').then(compressed => {
+                            const base64 = _arrayBufferToBase64(compressed);
+                            console.log('length compressed:', base64.length, 'original:', payload.length);
+                            searchParams.set('gra-vis-graph', base64);
+                            url.search = searchParams.toString();
+                            window.history.replaceState({}, '', url);
+                        }).catch(console.error);
+                    }
+                }, 1000);
+            });
+            updateVisualizationOptions();
+            graphSim.changeMode(Mode.ADD_VERTEX);
+
+            const popoverTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="popover"]'));
+            popoverTriggerList.map(function (popoverTriggerEl) {
+                return new bootstrap.Popover(popoverTriggerEl)
+            });
+
+            {
+                const url = new URL(window.location.href);
+                const searchParams = new URLSearchParams(url.search);
+                const base64 = searchParams.get('gra-vis-graph');
+                if (base64) {
+                    decompressBlob(base64toBlob(base64)).then(blob => {
+                        blob.text().then(payload => {
+                            const { edges, vertices, nonExistentVertices } = JSON.parse(payload);
+                            graphSim.loadGraph(vertices, edges, nonExistentVertices);
+                        }).catch(err => {
+                            console.error('Error parsing graph data:', err);
+                        });
+                    }).catch(err => {
+                        console.error('Error decompressing graph data:', err);
+                    });
+                }
+            }
+
+            // add key listener for l + 1, 2, ... for accessing stored graphs
+            let isLPressed = false;
+            let isSPressed = false;
+            document.addEventListener('keydown', function (event) {
+                if (event.key === 'l') {
+                    isLPressed = true;
+                } else if (event.key === 's') {
+                    isSPressed = true;
+                } else if (isLPressed && !isNaN(event.key) && event.key !== '0') {
+                    const graphIndex = parseInt(event.key) - 1;
+                    const storedGraphs = JSON.parse(localStorage.getItem('gra-vis-stored-graphs') || '[]');
+                    if (graphIndex < storedGraphs.length) {
+                        const storedGraph = storedGraphs[graphIndex];
+                        graphSim.loadGraph(storedGraph.vertices, storedGraph.edges, storedGraph.nonExistentVertices);
+                        toast('Graph Loaded', 'The stored graph has been loaded from slot ' + (graphIndex + 1) + '.');
+                    }
+                } else if (isSPressed && !isNaN(event.key) && event.key !== '0') {
+                    const graphIndex = parseInt(event.key) - 1;
+                    const storedGraphs = JSON.parse(localStorage.getItem('gra-vis-stored-graphs') || '[]');
+                    storedGraphs[graphIndex] = {
+                        vertices: graphSim.getState().vertices,
+                        edges: graphSim.getState().edges,
+                        nonExistentVertices: graphSim.getState().nonExistentVertices
+                    };
+                    localStorage.setItem('gra-vis-stored-graphs', JSON.stringify(storedGraphs));
+                    toast('Graph Stored', 'The current graph has been stored into slot ' + (graphIndex + 1) + '.');
+                }
+            });
+
+            document.addEventListener('keyup', function (event) {
+                if (event.key === 'l') {
+                    isLPressed = false;
+                } else if (event.key === 's') {
+                    isSPressed = false;
                 }
             });
         }
+    );
 
-        graphSim.addUpdateListener((graph) => {
-            const K = graph.edges
-                .filter(edge => edge.countTowardsTotal !== false)
-                .length;
-            const E = graph.vertices.length;
-            const f = graph.polygons.length + 1; // outside face
-            updateFormula(K, E, f);
-            updateVisualizationOptions();
+    function toast(title, message) {
+        const toast = document.createElement('div');
+        toast.className = 'toast';
+        toast.setAttribute('role', 'alert');
+        toast.setAttribute('aria-live', 'assertive');
+        toast.setAttribute('aria-atomic', 'true');
+        toast.style.position = 'absolute';
+        toast.style.top = '10px';
+        toast.style.right = '10px';
+        toast.style.zIndex = '9999';
 
-            // save to local storage
-            if (graph.edges.length > 0) {
-                localStorage.setItem('gra-vis-graph-edges', JSON.stringify(graph.edges));
-            } else {
-                localStorage.removeItem('gra-vis-graph-edges');
-            }
-            if (graph.vertices.length > 0) {
-                localStorage.setItem('gra-vis-graph-vertices', JSON.stringify(graph.vertices));
-            } else {
-                localStorage.removeItem('gra-vis-graph-vertices');
-            }
-            if (graph.nonExistentVertices.length > 0) {
-                localStorage.setItem('gra-vis-graph-non-existent-vertices', JSON.stringify(graph.nonExistentVertices));
-            } else {
-                localStorage.removeItem('gra-vis-graph-non-existent-vertices');
-            }
-        });
-        updateVisualizationOptions();
-        graphSim.changeMode(Mode.ADD_VERTEX);
+        const toastHeader = document.createElement('div');
+        toastHeader.className = 'toast-header';
+        const toastTitle = document.createElement('strong');
+        toastTitle.className = 'me-auto';
+        toastTitle.textContent = title;
+        const toastCloseButton = document.createElement('button');
+        toastCloseButton.className = 'btn-close';
+        toastCloseButton.setAttribute('type', 'button');
+        toastCloseButton.setAttribute('data-bs-dismiss', 'toast');
+        toastHeader.appendChild(toastTitle);
+        toastHeader.appendChild(toastCloseButton);
 
-        var popoverTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="popover"]'))
-        var popoverList = popoverTriggerList.map(function (popoverTriggerEl) {
-            return new bootstrap.Popover(popoverTriggerEl)
-        });
+        const toastBody = document.createElement('div');
+        toastBody.className = 'toast-body';
+        toastBody.textContent = message;
 
-        // attempt to load from local storage
-        if (localStorage.getItem('gra-vis-graph-edges') || localStorage.getItem('gra-vis-graph-vertices') || localStorage.getItem('gra-vis-graph-non-existent-vertices')) {
-            let edges = localStorage.getItem('gra-vis-graph-edges');
-            let vertices = localStorage.getItem('gra-vis-graph-vertices');
-            let nonExistentVertices = localStorage.getItem('gra-vis-graph-non-existent-vertices');
-            edges = edges ? JSON.parse(edges) : [];
-            vertices = vertices ? JSON.parse(vertices) : [];
-            nonExistentVertices = nonExistentVertices ? JSON.parse(nonExistentVertices) : [];
-            graphSim.loadGraph(vertices, edges, nonExistentVertices);
-        }
-    });
+        toast.appendChild(toastHeader);
+        toast.appendChild(toastBody);
+
+        document.body.appendChild(toast);
+
+        const bsToast = new bootstrap.Toast(toast);
+        bsToast.show();
+    }
 </script>
 </body>
 </html>

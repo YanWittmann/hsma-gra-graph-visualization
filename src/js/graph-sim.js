@@ -354,7 +354,6 @@ function initializeGraphSim(canvasId) {
         const rect = canvas.getBoundingClientRect();
         let mouseX = event.clientX - rect.left;
         let mouseY = event.clientY - rect.top;
-
         ({ mouseX, mouseY } = snapPositionToGrid(event, mouseX, mouseY));
 
         if ((currentMode === Mode.ADD_EDGE || currentMode === Mode.ADD_EDGE_REDIRECT) && selectedVertex) {
@@ -422,6 +421,9 @@ function initializeGraphSim(canvasId) {
                 return true;
             });
         } else if (currentMode === Mode.MOVE_VERTEX && draggedVertex) {
+            const pos = snapPositionToGrid(event, draggedVertex.x, draggedVertex.y);
+            draggedVertex.x = pos.mouseX;
+            draggedVertex.y = pos.mouseY;
             draggedVertex = null;
         }
 
@@ -565,10 +567,13 @@ function initializeGraphSim(canvasId) {
             drawGraph();
         } else if (event.key === 'd') {
             // export graph into png and download, crop the canvas to the graph by finding the max and min x and y values and adding the vertex radius as padding
-            const minX = Math.min(...vertices.map(vertex => vertex.x)) - vertexRadius * 2;
-            const maxX = Math.max(...vertices.map(vertex => vertex.x)) + vertexRadius * 2;
-            const minY = Math.min(...vertices.map(vertex => vertex.y)) - vertexRadius * 2;
-            const maxY = Math.max(...vertices.map(vertex => vertex.y)) + vertexRadius * 2;
+            let relevantPoints = vertices.concat(nonExistentVertices).map(vertex => {
+                return { x: vertex.x, y: vertex.y };
+            });
+            const minX = Math.min(...relevantPoints.map(vertex => vertex.x)) - vertexRadius * 2;
+            const maxX = Math.max(...relevantPoints.map(vertex => vertex.x)) + vertexRadius * 2;
+            const minY = Math.min(...relevantPoints.map(vertex => vertex.y)) - vertexRadius * 2;
+            const maxY = Math.max(...relevantPoints.map(vertex => vertex.y)) + vertexRadius * 2;
             const width = maxX - minX;
             const height = maxY - minY;
             const tempCanvas = document.createElement('canvas');
@@ -580,6 +585,9 @@ function initializeGraphSim(canvasId) {
             link.download = 'graph-' + polygons.length + '-' + vertices.length + '-' + edges.length + '.png';
             link.href = tempCanvas.toDataURL();
             link.click();
+        } else if (event.key === 'p') {
+            vertices.forEach(vertex => vertex.color = getRandomColor());
+            drawGraph();
         }
     });
 
