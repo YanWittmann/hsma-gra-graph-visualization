@@ -306,7 +306,7 @@
                     if (graph.edges.length > 0 || graph.vertices.length > 0 || graph.nonExistentVertices.length > 0) {
                         compressGzip(payload, 'gzip').then(compressed => {
                             const base64 = _arrayBufferToBase64(compressed);
-                            console.log('length compressed:', base64.length, 'original:', payload.length);
+                            // console.log('length compressed:', base64.length, 'original:', payload.length);
                             searchParams.set('gra-vis-graph', base64);
                             url.search = searchParams.toString();
                             window.history.replaceState({}, '', url);
