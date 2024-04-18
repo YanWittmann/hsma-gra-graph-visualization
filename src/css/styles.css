@@ -13,7 +13,7 @@ canvas {
     height: 100%;
 }
 
-#formulaText.invalid {
+.invalid {
     color: red;
     text-decoration: underline;
     background-color: rgba(250, 57, 57, 0.16);

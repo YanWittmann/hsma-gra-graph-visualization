@@ -196,18 +196,46 @@ function initializeGraphSim(canvasId) {
             if (visualizationOptions.showPolygonIndices) {
                 let index = 0;
                 for (const polygon of polygons) {
+                    index++;
                     const area = polygon.points;
 
                     const center = findPolygonCenter(area);
                     ctx.beginPath();
                     ctx.font = "18px Arial";
                     ctx.fillStyle = '#000';
-                    ctx.fillText((index + 1) + '', center.x, center.y);
+                    ctx.fillText(index + '', center.x, center.y);
                     ctx.fill();
                     ctx.closePath();
-
-                    index++;
                 }
+                index++;
+
+                // draw the outer index on all four sides, go outwards as far as nessecary to not overlap with other polygons
+                const averagePolygonCenter = findPolygonCenter(polygons.map(polygon => polygon.points));
+                const maxPolygonCoordinates = findMaxCoordinates(polygons.map(polygon => polygon.points));
+                const minDistanceFromEdge = 30;
+                const jitteringDistance = 5;
+                const left = findJustOverlappingWithPolygonsPosition(polygons, maxPolygonCoordinates.minX - 50, averagePolygonCenter.y, 10, 0);
+                left.x -= 40;
+                jitterPointDistanceFromEdge(edges, polygons, left, minDistanceFromEdge, jitteringDistance);
+                const right = findJustOverlappingWithPolygonsPosition(polygons, maxPolygonCoordinates.maxX + 50, averagePolygonCenter.y, -10, 0);
+                right.x += 40;
+                jitterPointDistanceFromEdge(edges, polygons, right, minDistanceFromEdge, jitteringDistance);
+                const top = findJustOverlappingWithPolygonsPosition(polygons, averagePolygonCenter.x, maxPolygonCoordinates.minY - 50, 0, 10);
+                top.y -= 40;
+                jitterPointDistanceFromEdge(edges, polygons, top, minDistanceFromEdge, jitteringDistance);
+                const bottom = findJustOverlappingWithPolygonsPosition(polygons, averagePolygonCenter.x, maxPolygonCoordinates.maxY + 50, 0, -10);
+                bottom.y += 40;
+                jitterPointDistanceFromEdge(edges, polygons, bottom, minDistanceFromEdge, jitteringDistance);
+
+                ctx.beginPath();
+                ctx.font = "18px Arial";
+                ctx.fillStyle = '#000';
+                ctx.fillText(index + '', left.x, left.y);
+                ctx.fillText(index + '', right.x, right.y);
+                ctx.fillText(index + '', top.x, top.y);
+                ctx.fillText(index + '', bottom.x, bottom.y);
+                ctx.fill();
+                ctx.closePath();
             }
         }
 
@@ -258,6 +286,59 @@ function initializeGraphSim(canvasId) {
 
         for (const listener of updateListeners) {
             listener(getState());
+        }
+    }
+
+    function findJustOverlappingWithPolygonsPosition(polygons, startX, startY, stepX, stepY) {
+        let x = startX;
+        let y = startY;
+        let found = false;
+        let maxIterations = 100;
+        while (!found && maxIterations > 0) {
+            maxIterations--;
+            found = false;
+            for (const polygon of polygons) {
+                if (isPointInsidePolygon({ x, y }, polygon.points)) {
+                    found = true;
+                    break;
+                }
+            }
+            if (!found) {
+                x += stepX;
+                y += stepY;
+            }
+        }
+        return { x, y };
+    }
+
+    function jitterPointDistanceFromEdge(edges, polygons, point, minDistance, jitteringDistance) {
+        const maxIterations = 100;
+        let iteration = 0;
+        let foundEdge = false;
+
+        const originalPoint = { x: point.x, y: point.y };
+
+        while (!foundEdge && iteration < maxIterations) {
+            iteration++;
+            point.x += Math.random() * jitteringDistance - jitteringDistance / 2;
+            point.y += Math.random() * jitteringDistance - jitteringDistance / 2;
+
+            if (isPointInsidePolygon(point, polygons)) {
+                continue;
+            }
+
+            for (const edge of edges) {
+                const distance = distanceToLine(point.x, point.y, edge.startVertex, edge.endVertex);
+                if (distance < minDistance) {
+                    foundEdge = false;
+                    break;
+                }
+            }
+        }
+
+        if (iteration >= maxIterations) {
+            point.x = originalPoint.x;
+            point.y = originalPoint.y;
         }
     }
 
@@ -570,10 +651,17 @@ function initializeGraphSim(canvasId) {
             let relevantPoints = vertices.concat(nonExistentVertices).map(vertex => {
                 return { x: vertex.x, y: vertex.y };
             });
-            const minX = Math.min(...relevantPoints.map(vertex => vertex.x)) - vertexRadius * 2;
-            const maxX = Math.max(...relevantPoints.map(vertex => vertex.x)) + vertexRadius * 2;
-            const minY = Math.min(...relevantPoints.map(vertex => vertex.y)) - vertexRadius * 2;
-            const maxY = Math.max(...relevantPoints.map(vertex => vertex.y)) + vertexRadius * 2;
+            let minX = Math.min(...relevantPoints.map(vertex => vertex.x)) - vertexRadius * 2;
+            let maxX = Math.max(...relevantPoints.map(vertex => vertex.x)) + vertexRadius * 2;
+            let minY = Math.min(...relevantPoints.map(vertex => vertex.y)) - vertexRadius * 2;
+            let maxY = Math.max(...relevantPoints.map(vertex => vertex.y)) + vertexRadius * 2;
+            if (visualizationOptions.showPolygonIndices) {
+                // add some extra padding for the indices
+                minX -= 40;
+                maxX += 40;
+                minY -= 40;
+                maxY += 40;
+            }
             const width = maxX - minX;
             const height = maxY - minY;
             const tempCanvas = document.createElement('canvas');
@@ -809,7 +897,7 @@ function initializeGraphSim(canvasId) {
             const polygon = polygons[i];
             const polygonAreaValue = polygonArea(polygon);
             let otherPolygonsAreaSum = 0;
-            let containedPolygons = [];
+            //let containedPolygons = [];
 
             // Check if the current polygon contains any point from other polygons
             for (let j = 0; j < polygons.length; j++) {
@@ -820,7 +908,7 @@ function initializeGraphSim(canvasId) {
                     for (const point of otherPolygon) {
                         if (isPointInsidePolygon(point, polygon) && !isPointInPolygonPoints(point, polygon)) {
                             otherPolygonsAreaSum += polygonArea(otherPolygon);
-                            containedPolygons.push(otherPolygon);
+                            //containedPolygons.push(otherPolygon);
                             break;
                         }
                     }
@@ -931,11 +1019,38 @@ function initializeGraphSim(canvasId) {
     function findPolygonCenter(polygon) {
         let x = 0;
         let y = 0;
+        let count = 0;
         for (const point of polygon) {
-            x += point.x;
-            y += point.y;
+            if (point.x === undefined || point.y === undefined) {
+                // is wrapped in an array once more
+                for (const innerPoint of point) {
+                    x += innerPoint.x;
+                    y += innerPoint.y;
+                    count++;
+                }
+            } else {
+                x += point.x;
+                y += point.y;
+                count++;
+            }
         }
-        return { x: x / polygon.length, y: y / polygon.length };
+        return { x: x / count, y: y / count };
+    }
+
+    function findMaxCoordinates(polygons) {
+        let maxX = -Infinity;
+        let maxY = -Infinity;
+        let minX = Infinity;
+        let minY = Infinity;
+        for (const polygon of polygons) {
+            for (const point of polygon) {
+                maxX = Math.max(maxX, point.x);
+                maxY = Math.max(maxY, point.y);
+                minX = Math.min(minX, point.x);
+                minY = Math.min(minY, point.y);
+            }
+        }
+        return { maxX, maxY, minX, minY };
     }
 
     function applyPolygonColor(polygons) {

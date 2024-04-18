@@ -65,21 +65,27 @@
             </div>
 
             <p class="text-center mt-3" style="font-size: 24px;" id="formulaText">
-                <span id="fvalue" style="color: #006fff; font-weight: bold;"
+                <span class="fvalue" style="color: #006fff; font-weight: bold;"
                       data-bs-toggle="popover" data-bs-trigger="hover" data-bs-placement="bottom"
                       title="Euler's Formula"
                       data-bs-content="f is the number of faces in the graph. Euler's formula states that f = |K| - |E| + 2.">
                 </span>
-                = <span id="Kvalue" style="color: #ff2d0f; font-weight: bold;"
+                = <span class="Kvalue" style="color: #ff2d0f; font-weight: bold;"
                         data-bs-toggle="popover" data-bs-trigger="hover" data-bs-placement="bottom"
                         title="Euler's Formula"
                         data-bs-content="|K| is the number of edges in the graph. Euler's formula states that f = |K| - |E| + 2.">
                 </span>
-                - <span id="Evalue" style="color: #04a100; font-weight: bold;"
+                - <span class="Evalue" style="color: #04a100; font-weight: bold;"
                         data-bs-toggle="popover" data-bs-trigger="hover" data-bs-placement="bottom"
                         title="Euler's Formula"
                         data-bs-content="|E| is the number of vertices in the graph. Euler's formula states that f = |K| - |E| + 2.">
             </span> + 2
+            </p>
+
+            <p class="text-center mt-3" style="font-size: 24px;" id="formulaText2">
+                <span class="Kvalue" style="color: #04a100; font-weight: bold;"></span> ≤ 3 ⋅ <span class="Evalue"
+                                                                                                    style="color: #ff2d0f; font-weight: bold;"></span>
+                - 6
             </p>
 
             <script>
@@ -87,20 +93,27 @@
                     const isEmpty = (value) => value === undefined || value === null || value === 0;
 
                     if (isEmpty(K) && isEmpty(E)) {
-                        document.getElementById('Kvalue').textContent = '|K|';
-                        document.getElementById('Evalue').textContent = '|E|';
-                        document.getElementById('fvalue').textContent = 'f';
+                        Array.from(document.getElementsByClassName('Kvalue')).forEach(element => element.textContent = '|K|');
+                        Array.from(document.getElementsByClassName('Evalue')).forEach(element => element.textContent = '|E|');
+                        Array.from(document.getElementsByClassName('fvalue')).forEach(element => element.textContent = 'f');
                         document.getElementById('formulaText').classList.remove('invalid');
                     } else {
-                        document.getElementById('Kvalue').textContent = K;
-                        document.getElementById('Evalue').textContent = E;
-                        document.getElementById('fvalue').textContent = f;
+                        Array.from(document.getElementsByClassName('Kvalue')).forEach(element => element.textContent = K);
+                        Array.from(document.getElementsByClassName('Evalue')).forEach(element => element.textContent = E);
+                        Array.from(document.getElementsByClassName('fvalue')).forEach(element => element.textContent = f);
 
                         // check if the formula is valid
                         if (K - E + 2 === f) {
                             document.getElementById('formulaText').classList.remove('invalid');
                         } else {
                             document.getElementById('formulaText').classList.add('invalid');
+                        }
+
+                        // check if the formula is valid
+                        if (K <= 3 * E - 6) {
+                            document.getElementById('formulaText2').classList.remove('invalid');
+                        } else {
+                            document.getElementById('formulaText2').classList.add('invalid');
                         }
                     }
                 }
