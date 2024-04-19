@@ -97,6 +97,7 @@
                         Array.from(document.getElementsByClassName('Evalue')).forEach(element => element.textContent = '|E|');
                         Array.from(document.getElementsByClassName('fvalue')).forEach(element => element.textContent = 'f');
                         document.getElementById('formulaText').classList.remove('invalid');
+                        document.getElementById('formulaText2').classList.remove('invalid');
                     } else {
                         Array.from(document.getElementsByClassName('Kvalue')).forEach(element => element.textContent = K);
                         Array.from(document.getElementsByClassName('Evalue')).forEach(element => element.textContent = E);
@@ -162,7 +163,6 @@
         writer.close();
         return new Response(cs.readable).arrayBuffer();
     }
-
 
     /**
      * https://stackoverflow.com/questions/16245767/creating-a-blob-from-a-base64-string-in-javascript
@@ -324,6 +324,10 @@
                             url.search = searchParams.toString();
                             window.history.replaceState({}, '', url);
                         }).catch(console.error);
+                    } else {
+                        searchParams.delete('gra-vis-graph');
+                        url.search = searchParams.toString();
+                        window.history.replaceState({}, '', url);
                     }
                 }, 1000);
             });
