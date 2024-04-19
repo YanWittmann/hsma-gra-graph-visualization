@@ -389,21 +389,32 @@ function initializeGraphSim(canvasId) {
                 }
             }
         } else if (currentMode === Mode.REMOVE_ELEMENT) {
+            let bestResult = { distance: Infinity, element: null };
             for (const vertex of vertices) {
                 const distance = Math.sqrt((mouseX - vertex.x) ** 2 + (mouseY - vertex.y) ** 2);
                 if (distance <= vertexRadius) {
-                    vertices = vertices.filter(v => v !== vertex);
-                    // Also remove any edges connected to the vertex
-                    edges = edges.filter(e => e.startVertex !== vertex && e.endVertex !== vertex);
-                    return;
+                    if (distance < bestResult.distance) {
+                        bestResult = { distance, element: vertex };
+                    }
                 }
             }
+            if (bestResult.element) {
+                vertices = vertices.filter(v => v !== bestResult.element);
+                // Also remove any edges connected to the vertex
+                edges = edges.filter(e => e.startVertex !== bestResult.element && e.endVertex !== bestResult.element);
+            }
+
+            bestResult = { distance: Infinity, element: null };
             for (const edge of edges) {
                 const distance = distanceToLine(mouseX, mouseY, edge.startVertex, edge.endVertex);
                 if (distance <= 10) { // threshold for easier selection
-                    edges = edges.filter(e => e !== edge);
-                    return;
+                    if (distance < bestResult.distance) {
+                        bestResult = { distance, element: edge };
+                    }
                 }
+            }
+            if (bestResult.element) {
+                edges = edges.filter(e => e !== bestResult.element);
             }
         } else if (currentMode === Mode.MOVE_VERTEX) {
             for (const vertex of vertices) {
