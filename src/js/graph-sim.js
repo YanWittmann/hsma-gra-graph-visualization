@@ -402,6 +402,7 @@ function initializeGraphSim(canvasId) {
                 vertices = vertices.filter(v => v !== bestResult.element);
                 // Also remove any edges connected to the vertex
                 edges = edges.filter(e => e.startVertex !== bestResult.element && e.endVertex !== bestResult.element);
+                return;
             }
 
             bestResult = { distance: Infinity, element: null };
