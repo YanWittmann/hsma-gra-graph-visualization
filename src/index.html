@@ -90,6 +90,20 @@
                 function updateFormula(K, E, f) {
                     const isEmpty = (value) => value === undefined || value === null || value === 0;
 
+                    // check if the formula is valid
+                    if (K - E + 2 === f) {
+                        document.getElementById('formulaText').classList.remove('invalid');
+                    } else {
+                        document.getElementById('formulaText').classList.add('invalid');
+                    }
+
+                    // check if the formula is valid
+                    if (K <= 3 * E - 6) {
+                        document.getElementById('formulaText2').classList.remove('invalid');
+                    } else {
+                        document.getElementById('formulaText2').classList.add('invalid');
+                    }
+
                     if (isEmpty(K) && isEmpty(E)) {
                         Array.from(document.getElementsByClassName('Kvalue')).forEach(element => element.textContent = '|K|');
                         Array.from(document.getElementsByClassName('Evalue')).forEach(element => element.textContent = '|E|');
@@ -99,20 +113,11 @@
                     } else {
                         Array.from(document.getElementsByClassName('Kvalue')).forEach(element => element.textContent = K);
                         Array.from(document.getElementsByClassName('Evalue')).forEach(element => element.textContent = E);
-                        Array.from(document.getElementsByClassName('fvalue')).forEach(element => element.textContent = f);
-
-                        // check if the formula is valid
-                        if (K - E + 2 === f) {
+                        if (f === -1) {
+                            Array.from(document.getElementsByClassName('fvalue')).forEach(element => element.textContent = 'f');
                             document.getElementById('formulaText').classList.remove('invalid');
                         } else {
-                            document.getElementById('formulaText').classList.add('invalid');
-                        }
-
-                        // check if the formula is valid
-                        if (K <= 3 * E - 6) {
-                            document.getElementById('formulaText2').classList.remove('invalid');
-                        } else {
-                            document.getElementById('formulaText2').classList.add('invalid');
+                            Array.from(document.getElementsByClassName('fvalue')).forEach(element => element.textContent = f);
                         }
                     }
                 }
@@ -294,11 +299,16 @@
             let saveTimeout = null;
 
             graphSim.addUpdateListener((graph) => {
+                let f;
+                if (graphSim.visualizationOptions && (graphSim.visualizationOptions.showPolygons || graphSim.visualizationOptions.showPolygonIndices)) {
+                    f = graph.polygons.length + 1; // outside face
+                } else {
+                    f = -1;
+                }
                 const K = graph.edges
                     .filter(edge => edge.countTowardsTotal !== false)
                     .length;
                 const E = graph.vertices.length;
-                const f = graph.polygons.length + 1; // outside face
                 updateFormula(K, E, f);
                 updateVisualizationOptions();
 
@@ -329,7 +339,9 @@
                     }
                 }, 1000);
             });
-            updateVisualizationOptions();
+            setTimeout(() => {
+                updateVisualizationOptions();
+            }, 100);
             graphSim.changeMode(Mode.ADD_VERTEX);
 
             const popoverTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="popover"]'));

@@ -111,6 +111,13 @@ function initializeGraphSim(canvasId) {
             return edge;
         });
         edges = edgesData;
+
+        const edgesSplitUp = splitEdges();
+        if (edgesSplitUp.newEdges.length > 22) {
+            visualizationOptions.showPolygons = false;
+            visualizationOptions.showPolygonIndices = false;
+        }
+
         drawGraph();
     }
 
@@ -176,66 +183,70 @@ function initializeGraphSim(canvasId) {
         ctx.clearRect(0, 0, canvas.width, canvas.height);
         if (!isMouseDown) {
             edgesSplitUp = splitEdges();
-            polygons = applyPolygonColor(findPolygons(edgesSplitUp.newEdges));
-            if (visualizationOptions.showPolygons) {
-                for (const polygon of polygons) {
-                    const area = polygon.points;
-                    const color = polygon.color;
+            if (visualizationOptions.showPolygons || visualizationOptions.showPolygonIndices) {
+                polygons = applyPolygonColor(findPolygons(edgesSplitUp.newEdges));
+                if (visualizationOptions.showPolygons) {
+                    for (const polygon of polygons) {
+                        const area = polygon.points;
+                        const color = polygon.color;
 
-                    ctx.beginPath();
-                    ctx.moveTo(area[0].x, area[0].y);
-                    for (let i = 1; i < area.length; i++) {
-                        ctx.lineTo(area[i].x, area[i].y);
+                        ctx.beginPath();
+                        ctx.moveTo(area[0].x, area[0].y);
+                        for (let i = 1; i < area.length; i++) {
+                            ctx.lineTo(area[i].x, area[i].y);
+                        }
+                        ctx.closePath();
+                        ctx.fillStyle = color;
+                        ctx.fill();
                     }
-                    ctx.closePath();
-                    ctx.fillStyle = color;
-                    ctx.fill();
                 }
-            }
 
-            if (visualizationOptions.showPolygonIndices) {
-                let index = 0;
-                for (const polygon of polygons) {
+                if (visualizationOptions.showPolygonIndices) {
+                    let index = 0;
+                    for (const polygon of polygons) {
+                        index++;
+                        const area = polygon.points;
+
+                        const center = findPolygonCenter(area);
+                        ctx.beginPath();
+                        ctx.font = "18px Arial";
+                        ctx.fillStyle = '#000';
+                        ctx.fillText(index + '', center.x, center.y);
+                        ctx.fill();
+                        ctx.closePath();
+                    }
                     index++;
-                    const area = polygon.points;
 
-                    const center = findPolygonCenter(area);
+                    // draw the outer index on all four sides, go outwards as far as nessecary to not overlap with other polygons
+                    const averagePolygonCenter = findPolygonCenter(polygons.map(polygon => polygon.points));
+                    const maxPolygonCoordinates = findMaxCoordinates(polygons.map(polygon => polygon.points));
+                    const minDistanceFromEdge = 30;
+                    const jitteringDistance = 5;
+                    const left = findJustOverlappingWithPolygonsPosition(polygons, maxPolygonCoordinates.minX - 50, averagePolygonCenter.y, 10, 0);
+                    left.x -= 40;
+                    jitterPointDistanceFromEdge(edges, polygons, left, minDistanceFromEdge, jitteringDistance);
+                    const right = findJustOverlappingWithPolygonsPosition(polygons, maxPolygonCoordinates.maxX + 50, averagePolygonCenter.y, -10, 0);
+                    right.x += 40;
+                    jitterPointDistanceFromEdge(edges, polygons, right, minDistanceFromEdge, jitteringDistance);
+                    const top = findJustOverlappingWithPolygonsPosition(polygons, averagePolygonCenter.x, maxPolygonCoordinates.minY - 50, 0, 10);
+                    top.y -= 40;
+                    jitterPointDistanceFromEdge(edges, polygons, top, minDistanceFromEdge, jitteringDistance);
+                    const bottom = findJustOverlappingWithPolygonsPosition(polygons, averagePolygonCenter.x, maxPolygonCoordinates.maxY + 50, 0, -10);
+                    bottom.y += 40;
+                    jitterPointDistanceFromEdge(edges, polygons, bottom, minDistanceFromEdge, jitteringDistance);
+
                     ctx.beginPath();
                     ctx.font = "18px Arial";
                     ctx.fillStyle = '#000';
-                    ctx.fillText(index + '', center.x, center.y);
+                    ctx.fillText(index + '', left.x, left.y);
+                    ctx.fillText(index + '', right.x, right.y);
+                    ctx.fillText(index + '', top.x, top.y);
+                    ctx.fillText(index + '', bottom.x, bottom.y);
                     ctx.fill();
                     ctx.closePath();
                 }
-                index++;
-
-                // draw the outer index on all four sides, go outwards as far as nessecary to not overlap with other polygons
-                const averagePolygonCenter = findPolygonCenter(polygons.map(polygon => polygon.points));
-                const maxPolygonCoordinates = findMaxCoordinates(polygons.map(polygon => polygon.points));
-                const minDistanceFromEdge = 30;
-                const jitteringDistance = 5;
-                const left = findJustOverlappingWithPolygonsPosition(polygons, maxPolygonCoordinates.minX - 50, averagePolygonCenter.y, 10, 0);
-                left.x -= 40;
-                jitterPointDistanceFromEdge(edges, polygons, left, minDistanceFromEdge, jitteringDistance);
-                const right = findJustOverlappingWithPolygonsPosition(polygons, maxPolygonCoordinates.maxX + 50, averagePolygonCenter.y, -10, 0);
-                right.x += 40;
-                jitterPointDistanceFromEdge(edges, polygons, right, minDistanceFromEdge, jitteringDistance);
-                const top = findJustOverlappingWithPolygonsPosition(polygons, averagePolygonCenter.x, maxPolygonCoordinates.minY - 50, 0, 10);
-                top.y -= 40;
-                jitterPointDistanceFromEdge(edges, polygons, top, minDistanceFromEdge, jitteringDistance);
-                const bottom = findJustOverlappingWithPolygonsPosition(polygons, averagePolygonCenter.x, maxPolygonCoordinates.maxY + 50, 0, -10);
-                bottom.y += 40;
-                jitterPointDistanceFromEdge(edges, polygons, bottom, minDistanceFromEdge, jitteringDistance);
-
-                ctx.beginPath();
-                ctx.font = "18px Arial";
-                ctx.fillStyle = '#000';
-                ctx.fillText(index + '', left.x, left.y);
-                ctx.fillText(index + '', right.x, right.y);
-                ctx.fillText(index + '', top.x, top.y);
-                ctx.fillText(index + '', bottom.x, bottom.y);
-                ctx.fill();
-                ctx.closePath();
+            } else {
+                polygons = [];
             }
         }
 
