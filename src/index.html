@@ -359,6 +359,7 @@
                         blob.text().then(payload => {
                             const { edges, vertices, nonExistentVertices } = JSON.parse(payload);
                             graphSim.loadGraph(vertices, edges, nonExistentVertices);
+                            graphSim.moveToTopLeftWithPadding(50, true);
                         }).catch(err => {
                             console.error('Error parsing graph data:', err);
                         });

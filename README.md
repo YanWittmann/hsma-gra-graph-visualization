@@ -21,7 +21,7 @@ zu langsam für einen normalen Gebrauch.
 
 ![Beispiel 2](img/example-2.png)
 
-![Beispiel 3](example-3.png)
+![Beispiel 3](img/example-3.png)
 
 ## Related Work / Literature
 
